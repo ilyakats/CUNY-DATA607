@@ -1,0 +1,147 @@
+---
+title: "DATA 607 Week 1 Assignment"
+author: "Ilya Kats"
+date: "February 5, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 1 task 
+
+**Your task** (***should you choose to except it** -- sorry, had the Mission Impossible theme playing as soon as I started reading*) is to study the dataset and the associated description of the data (i.e. "data dictionary"). You may need
+to look around a bit, but it's there! You should take the data, and create a data frame with a subset of the columns
+in the dataset. You should include the column that indicates edible or poisonous and three or four other columns.
+You should also add meaningful column names and replace the abbreviations used in the data-for example, in the
+appropriate column, "e" might become "edible." Your deliverable is the R code to perform these transformation
+tasks.
+
+## Setup
+
+The data set includes descriptions of hypothetical samples corresponding to 23 species of gilled mushrooms in the Agaricus and Lepiota Family. Data is courtesy of [UCI](https://archive.ics.uci.edu/ml/datasets/Mushroom/), Jeff Schlimmer and The Audubon Society. 
+
+```{r message=FALSE}
+# Load packages
+library(RCurl)
+
+# Load data file
+shrooms <- read.csv(text=getURL("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data"), header = FALSE, sep = ",")
+```
+
+```{r}
+# Quick look at the data
+head(shrooms)
+summary(shrooms)
+```
+
+## Data dictionary
+
+The first column describes class (edible=e, poisonous=p) and the data set includes 22 variables:
+
+1. `cap-shape`: bell=b, conical=c, convex=x, flat=f, knobbed=k, sunken=s
+2. `cap-surface`: fibrous=f, grooves=g, scaly=y, smooth=s
+3. `cap-color`: brown=n, buff=b, cinnamon=c, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y
+4. `bruises?`: bruises=t, no=f
+5. `odor`: almond=a, anise=l, creosote=c, fishy=y, foul=f, musty=m, none=n, pungent=p, spicy=s
+6. `gill-attachment`: attached=a, descending=d, free=f, notched=n
+7. `gill-spacing`: close=c, crowded=w, distant=d
+8. `gill-size`: broad=b, narrow=n
+9. `gill-color`: black=k, brown=n, buff=b, chocolate=h, gray=g, green=r, orange=o, pink=p, purple=u, red=e, white=w, yellow=y
+10. `stalk-shape`: enlarging=e, tapering=t
+11. `stalk-root`: bulbous=b, club=c, cup=u, equal=e, rhizomorphs=z, rooted=r, missing=?
+12. `stalk-surface-above-ring`: fibrous=f, scaly=y, silky=k, smooth=s
+13. `stalk-surface-below-ring`: fibrous=f, scaly=y, silky=k, smooth=s
+14. `stalk-color-above-ring`: brown=n, buff=b, cinnamon=c, gray=g, orange=o, pink=p, red=e, white=w, yellow=y
+15. `stalk-color-below-ring`: brown=n, buff=b, cinnamon=c, gray=g, orange=o, pink=p, red=e, white=w, yellow=y
+16. `veil-type`: partial=p, universal=u
+17. `veil-color`: brown=n, orange=o, white=w, yellow=y
+18. `ring-number`: none=n, one=o, two=t
+19. `ring-type`: cobwebby=c, evanescent=e, flaring=f, large=l, none=n, pendant=p, sheathing=s, zone=z
+20. `spore-print-color`: black=k, brown=n, buff=b, chocolate=h, green=r, orange=o, purple=u,white=w, yellow=y
+21. `population`: abundant=a, clustered=c, numerous=n, scattered=s, several=v, solitary=y
+22. `habitat`: grasses=g, leaves=l, meadows=m, paths=p, urban=u, waste=w, woods=d
+
+```{r}
+# Rename columns 
+names(shrooms) <- c('class','capshape','capsurface','capcolor','bruises','odor','gillattachment','gillspacing','gillsize','gillcolor','stalkshape','stalkroot','stalksurfaceabovering','stalksurfacebelowring','stalkcolorabovering','stalkcolorbelowring','veiltype','veilcolor','ringnumber','ringtype','sporeprintcolor','population','habitat')
+```
+
+## Selecting a subset
+
+Select `class`, `odor`, `ringnumber`, `ringtype` and `population` for all mushrooms that grows in the woods to further transform and review.
+
+```{r}
+sub.shrooms <- subset(shrooms, habitat == 'd', select = c(class, odor, ringnumber, ringtype, population))
+summary(sub.shrooms)
+```
+
+## Transforming the subset
+
+Update variables with more meaningful values.
+
+```{r}
+# Update class
+sub.shrooms$class <- as.character(sub.shrooms$class)
+sub.shrooms$class[sub.shrooms$class == 'e'] <- 'Edible'
+sub.shrooms$class[sub.shrooms$class == 'p'] <- 'Poisonous'
+sub.shrooms$class <- as.factor(sub.shrooms$class)
+
+# Update odor
+sub.shrooms$odor <- as.character(sub.shrooms$odor)
+sub.shrooms$odor[sub.shrooms$odor == 'a'] <- 'Almond'
+sub.shrooms$odor[sub.shrooms$odor == 'l'] <- 'Anise'
+sub.shrooms$odor[sub.shrooms$odor == 'c'] <- 'Creosote'
+sub.shrooms$odor[sub.shrooms$odor == 'y'] <- 'Fishy'
+sub.shrooms$odor[sub.shrooms$odor == 'f'] <- 'Foul'
+sub.shrooms$odor[sub.shrooms$odor == 'm'] <- 'Musty'
+sub.shrooms$odor[sub.shrooms$odor == 'n'] <- 'None'
+sub.shrooms$odor[sub.shrooms$odor == 'p'] <- 'Pungent'
+sub.shrooms$odor[sub.shrooms$odor == 's'] <- 'Spicy'
+sub.shrooms$odor <- as.factor(sub.shrooms$odor)
+
+# Update ring type; Replace with NA if no rings exist
+sub.shrooms$ringtype <- as.character(sub.shrooms$ringtype)
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'p'] <- 'Pendant'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'c'] <- 'Cobwebby'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'e'] <- 'Evanescent'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'f'] <- 'Flaring'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'l'] <- 'Large'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'n'] <- NA
+sub.shrooms$ringtype[sub.shrooms$ringtype == 's'] <- 'Sheathing'
+sub.shrooms$ringtype[sub.shrooms$ringtype == 'z'] <- 'Zone'
+sub.shrooms$ringtype <- as.factor(sub.shrooms$ringtype)
+
+# Update population
+sub.shrooms$population <- as.character(sub.shrooms$population)
+sub.shrooms$population[sub.shrooms$population == 'a'] <- 'Abundant'
+sub.shrooms$population[sub.shrooms$population == 'c'] <- 'Clustered'
+sub.shrooms$population[sub.shrooms$population == 'n'] <- 'Numerous'
+sub.shrooms$population[sub.shrooms$population == 's'] <- 'Scattered'
+sub.shrooms$population[sub.shrooms$population == 'v'] <- 'Several'
+sub.shrooms$population[sub.shrooms$population == 'y'] <- 'Solitary'
+sub.shrooms$population <- as.factor(sub.shrooms$population)
+
+# Update ring number and convert to numeric
+sub.shrooms$ringnumber <- as.character(sub.shrooms$ringnumber)
+sub.shrooms$ringnumber[sub.shrooms$ringnumber == 'n'] <- 0
+sub.shrooms$ringnumber[sub.shrooms$ringnumber == 'o'] <- 1
+sub.shrooms$ringnumber[sub.shrooms$ringnumber == 't'] <- 2
+sub.shrooms$ringnumber <- as.numeric(sub.shrooms$ringnumber)
+
+# Display 25 random rows to check the transformations
+set.seed(125)
+sub.shrooms[sample(1:nrow(sub.shrooms), 25), ]
+
+summary(sub.shrooms)
+```
+
+Adding a few rudimentary graphs just for a bit of practice.
+
+```{r}
+plot(sub.shrooms$class ~ sub.shrooms$ringtype, xlab = "Ring Type", ylab = "Class", main = "Class by Ring Type (Woods Only)")
+plot(sub.shrooms$odor, xlab = "Odor", ylab = "Frequency", col = 1:length(sub.shrooms$odor))
+```
