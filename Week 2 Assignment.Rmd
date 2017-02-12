@@ -1,0 +1,192 @@
+---
+title: "DATA 607 Week 2 Assignment"
+author: "Ilya Kats"
+date: "February 11, 2017"
+params:
+  username: "root"
+  password: ""
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 2 task 
+
+Choose six recent popular movies. Ask at least five people that you know (friends, family, classmates, imaginary friends) to rate each of these movie that they have seen on a scale of 1 to 5. Take the results (observations) and store them in a SQL database. Load the information into an R dataframe. Your deliverables should include your SQL scripts and your R Markdown code, posted to GitHub.
+
+## Setup
+
+```{r libraries, message=FALSE}
+# Load packages
+library(RMySQL)
+library(reshape2)
+library(plyr)
+```
+
+## Data initialization
+
+Since this assignment is centered around using R with SQL, I have decided to enter initial data manually. Every year I attemp to watch all movies nominated as Best Picture for the Academy Awards. This data set includes my ratings and ratings of several review aggregators for 9 movies nominated this year. 
+
+```{r data_initialization}
+
+movies <- c("Arrival", "Fences", "Hacksaw Ridge", "Hell or High Water", "Hidden Figures",
+            "La La Land", "Lion", "Manchester by the Sea", "Moonlight")
+ilya <- c(3, NA, 3, NA, 4, 3, 3, 5, 4)
+imdb <- c(8.1, 7.5, 8.3, 7.7, 7.9, 8.5, 8, 8.2, 8.1)
+rotten_tomatoes <- c(94, 95, 86, 98, 92, 93, 86, 96, 98)
+google_users <- c(86, 83, 94, 91, 92, 89, 84, 74, 88)
+metacritic <- c(81, 79, 71, 88, 74, 93, 69, 96, 99)
+
+ratings <- data.frame(movies, ilya, imdb, rotten_tomatoes, google_users, metacritic)
+
+# Normalize all ratings to a 5 point scale
+ratings$imdb <- round(ratings$imdb / 2, 0)
+ratings$rotten_tomatoes <- round(ratings$rotten_tomatoes / 20, 0)
+ratings$google_users <- round(ratings$google_users / 20, 0)
+ratings$metacritic <- round(ratings$metacritic / 20, 0)
+knitr::kable(ratings, col.names = c("Movies", "My Ratings", "IMDB", "Rotten Tomatoes", "Google Users", "Metacritic"))
+```
+
+Just for practicing I have decided to normalize the main table into three smaller tables containing information about movies, critics and ratings. 
+
+```{r data_transpose}
+# Transpose the table
+movie_ratings <- melt(ratings, id=c("movies"))
+colnames(movie_ratings) <- c("movie", "critic", "rating")
+
+# Extract unique movies and assign ID to each
+movies <- data.frame(1:nlevels(movie_ratings$movie), levels(movie_ratings$movie))
+colnames(movies) <- c("id", "movie")
+
+# Extract unique critics and assign ID to each
+critics <- data.frame(1:nlevels(movie_ratings$critic), levels(movie_ratings$critic))
+colnames(critics) <- c("id", "critic")
+
+# Add corresponding movie and critic IDs to ratings
+movie_ratings <- join(movie_ratings, critics, by = "critic")
+movie_ratings <- join(movie_ratings, movies, by = "movie")
+# Drop unneeded columns
+movie_ratings <- movie_ratings[ -c(1:2)]
+# Add ID to ratings and adjust column names
+movie_ratings <- data.frame(1:nrow(movie_ratings), movie_ratings)
+colnames(movie_ratings) <- c("id", "rating", "critic_id", "movie_id")
+
+# Adjust critic names
+critics$critic <- as.character(critics$critic)
+critics$critic[critics$critic == 'ilya'] <- 'Ilya Kats'
+critics$critic[critics$critic == 'imdb'] <- 'IMDb'
+critics$critic[critics$critic == 'rotten_tomatoes'] <- 'Rotten Tomatoes'
+critics$critic[critics$critic == 'google_users'] <- 'Google Users'
+critics$critic[critics$critic == 'metacritic'] <- 'Metacritic'
+critics$critic <- as.factor(critics$critic)
+```
+
+```{r echo=FALSE}
+knitr::kable(movies, col.names = c("ID", "Movie"), caption = "Table 1. Movies")
+knitr::kable(critics, col.names = c("ID", "Critic"), caption = "Table 2. Critics")
+knitr::kable(movie_ratings[1:12, ], col.names = c("ID", "Rating", "Critic ID", "Movie ID"), caption = "Table 3. Ratings")
+```
+
+## Database connection
+
+```{r db_connection, eval=FALSE}
+# Prompt for server username and password and establish connection
+# getPass package is required
+
+username <- readline("Please enter MySQL server username: ")
+password <- getPass::getPass("Please enter MySQL server password: ")
+
+con <- dbConnect(MySQL(), "flights", username=username, password=password)
+```
+
+```{r db_connection_markdown, echo=FALSE}
+# Establish connection for rendering of R Markdown document by passing username and password through parameters
+# Do not execute outside of the R Markdown document rendering
+
+con <- dbConnect(MySQL(), "flights", username=params$username, password=params$password)
+```
+
+## Database creation, setup and data import
+
+```{r data_import, results='hide'}
+dbSendQuery(con, "CREATE DATABASE IF NOT EXISTS MovieRatings;")
+dbSendQuery(con, "USE MovieRatings;")
+
+# MOVIES
+dbSendQuery(con, "DROP TABLE IF EXISTS Movies;")
+dbSendQuery(con, "CREATE TABLE Movies 
+            (
+            ID int PRIMARY KEY, 
+            Title varchar(255)
+            );")
+values <- paste("(",movies$id,",'", movies$movie,"')", sep="", collapse=",")
+sqlst <- paste("INSERT INTO Movies VALUES",values)
+dbSendQuery(con, sqlst)
+
+# CRITICS
+dbSendQuery(con, "DROP TABLE IF EXISTS Critics;")
+dbSendQuery(con, "CREATE TABLE Critics 
+            (
+            ID int PRIMARY KEY, 
+            Name varchar(255)
+            );")
+values <- paste("(",critics$id,",'", critics$critic,"')", sep="", collapse=",")
+sqlst <- paste("INSERT INTO Critics VALUES",values)
+dbSendQuery(con, sqlst)
+
+# RATINGS
+dbSendQuery(con, "DROP TABLE IF EXISTS Ratings;")
+dbSendQuery(con, "CREATE TABLE Ratings 
+            (
+            ID int PRIMARY KEY, 
+            CriticID int,
+            MovieID int,
+            Rating int
+            );")
+values <- paste("(",movie_ratings$id,",", movie_ratings$critic_id,",", 
+                movie_ratings$movie_id,",", 
+                ifelse(!is.na(movie_ratings$rating),movie_ratings$rating,"NULL"),
+                ")", sep="", collapse=",")
+sqlst <- paste("INSERT INTO Ratings VALUES",values)
+dbSendQuery(con, sqlst)
+
+# Create a view to easily retrieve all relevant ratings information
+dbSendQuery(con, "DROP VIEW IF EXISTS ExpandedRatings;")
+sqlst <- "CREATE VIEW ExpandedRatings AS
+          SELECT c.Name AS 'Critic Name', m.Title AS 'Movie Title', r.Rating FROM Ratings r
+          INNER JOIN Critics c ON r.CriticID = c.ID
+          INNER JOIN Movies m ON r.MovieID = m.ID;"
+dbSendQuery(con, sqlst)
+```
+
+## Data access
+
+```{r data_access}
+allratings <- dbReadTable(con, "ExpandedRatings")
+knitr::kable(allratings)
+```
+
+Other options for reading data from SQL database into R dataframe are `dbGetQuery` to implicitly fetch all results of a SELECT statement and `dbSendQuery` and `fetch` combination to access results, but only fetch them when explicitly specified.
+
+## Cleanup
+
+```{r cleanup, results='hide'}
+dbDisconnect(con)
+```
+
+## Conclusion
+
+The code above connects to a MySQL server and creates a simple relational database completely by passing SQL statements through R code. Alternatively, data could have been saved in an external CSV file and loaded into a SQL database by executing the LOAD DATA SQL statement. 
+
+```sql
+LOAD DATA INFILE 'c:/Data/ratings.csv' 
+INTO TABLE ratings 
+FIELDS TERMINATED BY ',' 
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+```
