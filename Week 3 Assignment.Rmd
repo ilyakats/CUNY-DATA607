@@ -1,0 +1,131 @@
+---
+title: "DATA 607 Week 3 Assignment"
+author: "Ilya Kats"
+date: "February 16, 2017"
+params:
+  username: "root"
+  password: ""
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 3
+
+```{r libraries, message=FALSE}
+# Load packages
+library(stringr)
+```
+
+### Problem 3
+
+```{r problem-3-data}
+raw.data <- "555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert"
+name <- unlist(str_extract_all(raw.data, "[[:alpha:],. ]{2,}"))
+name
+```
+
+
+***
+
+#### Part (a)
+
+```{r problem-3-part-a}
+# Isolate only names containing commas
+names_with_commas <- name[str_detect(name,",")]
+
+# Find a comma and extract anything to the left of it = Last names
+# Trim just in case
+last_names <- str_trim(str_sub(names_with_commas, 1, str_locate(names_with_commas, ",")[,1]-1))
+
+# Find a comma and extract anything to the right of it = First names
+# Trim to get rid of space after comma
+first_names <- str_trim(str_sub(names_with_commas, str_locate(names_with_commas,",")[,1]+1, str_length(names_with_commas)))
+
+# Populate original vector
+name[str_detect(name,",")] <- str_c(first_names, last_names, sep = " ")
+name
+```
+
+**Note:** Above code has an issue with names containing suffixes - Jr, Sr, Esq, II, etc.
+
+***
+
+#### Part (b)
+
+```{r problem-3-part-b}
+# Create a vector of possible titles
+titles <- c("dr", "rev", "hon", "mr", "mrs", "ms")
+
+# Extract first words of all names 
+check_titles <- unlist(str_trim(str_extract(name, "^.\\w+")))
+
+# Convert titles and first words to upper case to force search to be case insensitive
+# Check if there are any matches
+check_titles <- pmatch(toupper(check_titles), toupper(titles)) > 0
+check_titles
+```
+
+**Note:** Above code relies on the title to be at the beginning of the name; however, it does account for titles without a trailing period.
+
+*** 
+
+#### Part (c)
+
+```{r problem-3-part-c}
+# Get a number of words per name
+word_count <- str_count(name, "\\w+")
+
+# Subtract 1 from names with a title
+word_count <- word_count - ifelse(is.na(check_titles), 0, 1)
+word_count
+
+# Any name over 2 words should have a second name
+second_name <- word_count > 2
+second_name
+```
+
+**Note:** Same as in part (a) the code above does not account for suffixes.
+
+*** 
+
+### Problem 4
+
+a. `[0-9]+\\$` - matches one or more uninterrupted digits followed by a dollar sign. Perhaps can be used to find dollar amounts, but it does not account for numbers with comma separators or cents.
+```{r}
+unlist(str_extract_all("Total amount is 9,999.99$.", "[0-9]+\\$"))
+```
+b. `\\b[a-z]{1,4}\\b` - matches one to four-character words in the input string (words must not contain punctuation or digits and must be in lowercase). 
+```{r}
+unlist(str_extract_all("One two three four.", "\\b[a-z]{1,4}\\b"))
+```
+c. `.*?\\.txt$` - matches any string ending with *.txt* including the string that equals *.txt*. Can be used to find text files in a file listing.
+```{r}
+unlist(str_extract_all("c:\temp\test.txt", ".*?\\.txt$"))
+```
+d. `\\d{2}/\\d{2}/\\d{4}` - matches two digits followed by a slash followed by another two digits followed by a slash and finally followed by four digits. Can be used to find properly formatted dates (mm/dd/yyyy or dd/mm/yyyy).
+```{r}
+unlist(str_extract_all("02/16/2017", "\\d{2}/\\d{2}/\\d{4}"))
+```
+e. `<(.+?)>.+?</\\1>` - matches a pair of openning and closing tags - one or more characters enclosed with < > brackets. The closing tag will have a slash in it, i.e. </ >. There must be one or more charcters between the tags. Opening and closing tag must be the same. Can be used to find HTML or XML tags; however, in case of nested tags, this expression will not grab the internal pair, but rather span across multiple pairs (see example below - matches from the first openning tag to the first closing tag when the most likely desired result is second opening tag to first closing tag).
+```{r}
+unlist(str_extract_all("<a>Test-123<a>654.test</a></a>", "<(.+?)>.+?</\\1>"))
+```
+
+***
+
+### Problem 9
+
+```{r problem-9}
+secret <- "clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr"
+secret
+
+# Not so secret message
+paste(unlist(str_extract_all(secret, "[:upper:]|[:punct:]")), collapse = "")
+```
+
+I figured that it is most likely just the matter of matching some specific characters. My first thought was to get rid of numbers and go from there. However, I was too lazy to go online to search for the snippet and instead I retyped it from the book. As I was typing I have noticed that there are very few upper case characters, so that seemed of value. Sure enough that was all it took. The exclamation point at the end highlighted the need for punctuation.
