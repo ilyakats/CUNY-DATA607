@@ -16,6 +16,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Project 1: Tournament Data
 
+**Input:** A text file with chess tournament results where the information has some structure.
+
+**Output:** A .CSV file with the following information for all of the players:
+
+* Player's Name
+* Player's State
+* Total Number of Points
+* Player's Pre-Rating
+* Average Pre-Tournament Rating of Opponents
+
 ### Setup and Data Import
 ```{r libraries, message=FALSE}
 # Load packages
@@ -23,7 +33,11 @@ library(stringr)
 library(data.table)
 
 # Read in data file skipping header block
-tournament <- read.csv("C:\\Temp\\GitHub\\CUNY-DATA607\\tournamentinfo.txt", sep = ",", skip = 3)
+tournament <- read.csv("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/tournamentinfo.txt", 
+                       sep = ",", skip = 3)
+
+# Sample raw input data
+head(tournament)
 ```
 
 ### Data Parsing: Part 1
@@ -70,7 +84,7 @@ knitr::kable(tournament[c(1:4,11:14, 16)],
 
 ### Data Parsing: Part 2
 
-```{r data-parsing2}
+```{r data-parsing2, warning = FALSE}
 # Melt tournament data to work on individual games data
 games <- melt(tournament, 
               id=c("playerId", "name"), 
@@ -92,9 +106,20 @@ knitr::kable(head(games),
              caption = "Table 2. Sample of individual games information.")
 ```
 
+Key to the `result` field:
+
+* W = Win
+* L = Loss
+* D = Draw
+* X = Win by forfeit (opponent failed to appear)
+* F = Loss by forfeit (player failed to appear)
+* U = Unplayed game
+* H = Half point bye
+* B = Full point bye
+
 ### Generate Opponent's Average Pre-Tournament Rating
 
-```{r}
+```{r opp-average}
 # Merge tournament and games information
 # The merge drops any games without a W/L/D decision (opponent ID is blank)
 games_expand <- data.table(merge(games, tournament, by.x = "opponentId", by.y = "playerId"))
@@ -108,9 +133,6 @@ avg_pre_rating$oppAverage <- round(avg_pre_rating$oppAverage)
 
 # Add average to the tournament data
 tournament <- merge(tournament, avg_pre_rating, by = "playerId")
-#tournament$playerId <- as.numeric(tournament$playerId)
-#tournament <- tournament[order(tournament$points, tournament$playerId),]
-#tournament
 ```
 
 ```{r, echo=FALSE}
@@ -120,15 +142,14 @@ knitr::kable(tournament[c(1, 2, 3, 11, 13, 23)],
 ```
 
 
+### Data Output
 
-Header block to be exactly 3 lines
-Each entry to have 2 lines
+```{r data-putput}
+write.table(tournament[, c(2, 3, 11, 13, 23)], file="tournament_summary.csv", sep = ",", 
+            row.names = FALSE,
+            col.names = c("Name", "Points", "State", "Pre-Tournament Rating", "Opp Avg Rating"))
+```
 
-W=Win
-L=Loss
-D=Draw
-X=Win by forfeit (opponent failed to appear)
-F=Loss by forfeit (player failed to appear)
-U=Unplayed game
-H=Half point bye
-B=Full point bye
+### Comments
+
+This project relies on input data to be in a certain format which, given uncommon input format, may limit parsing code's usefulness and make it unreliable in reproducibility. For example, the input text file must have a header block consisting of 3 lines and each player's information must be split over 2 lines.
