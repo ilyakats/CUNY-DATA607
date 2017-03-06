@@ -1,0 +1,132 @@
+---
+title: "DATA 607 Week 5 Assignment: Flight Data Analysis"
+author: "Ilya Kats"
+date: "March 5, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<STYLE>
+table {
+    border: 1px solid black;
+}
+th {
+    background-color: rgb(112, 196, 105);
+    color: white;
+    font-weight: bold;
+    padding: 20px 30px;
+}
+tr:nth-child(even) {
+    background-color: rgb(220,220,220);
+}
+tr:nth-child(odd) {
+    background-color: rgb(255, 255, 255);
+}
+</STYLE>
+
+## Required Libraries
+
+```{r requirements, results='hide', message=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(stringr)
+library(ggplot2)
+```
+
+## Data Import
+
+```{r data-import}
+flights <- read.csv("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/flightinfo.csv", 
+                    sep = ",", header = TRUE)
+```
+
+```{r echo=FALSE}
+kable(flights, caption = "Table 1. Raw Data")
+```
+
+## Data Cleanup and Tidying
+
+```{r data-cleanup}
+# Rename fields
+flights <- rename(flights, airline = X, delay = X.1)
+
+# Tidy up data, so that every variable is in a column and every observation is in a row
+flights <- flights %>% 
+  gather(city, freq, 3:length(flights)) %>%   # Transfer 'city' variable into a column
+  spread(delay, freq)                         # Split 'delayed'/'on time' variables into 2 columns
+
+# Adjust city names (get rid of a period)
+flights$city <- str_replace_all(flights$city, "\\.", " ")
+
+# Remove space in the 'on time' variable name
+flights <- rename(flights, ontime = `on time`)
+```
+
+At this point the initial data is tidy. Each variable - `airline`, `city`, `delayed`, `ontime` - is in its own column and each observation is in its own row. 
+
+```{r echo=FALSE}
+kable(flights)
+```
+
+## Data Analysis
+
+Let us start with getting the ratio of delayed flights for all airlines and cities. We'll sort the data by delay starting with the worst airline/city combo.
+
+```{r delay-ratio}
+flights <- flights %>% 
+  mutate(flights = delayed + ontime, delayed_ratio = delayed / flights) %>% 
+  arrange(desc(delayed_ratio))
+```
+
+```{r echo=FALSE}
+kable(flights)
+```
+
+Let us look compare how delays stack up against each other using various criteria.
+
+```{r avg-delay-total}
+# Average delay across all cities and airlines
+flights %>% summarise(mean(delayed_ratio))
+```
+
+```{r avg-delay-city}
+delay_city <- flights %>% 
+  group_by(city) %>% 
+  summarise(avg_delay = mean(delayed_ratio)) %>% 
+  arrange(desc(avg_delay))
+```
+  
+```{r echo=FALSE}
+kable(delay_city, caption = "Table 4. Delayed Flights by City", col.names = c("City", "Avg Delay"))
+```
+
+```{r avg-delay-airline}
+delay_airline <- flights %>% 
+  group_by(airline) %>% 
+  summarise(avg_delay = mean(delayed_ratio)) %>% 
+  arrange(desc(avg_delay))
+```
+  
+```{r echo=FALSE}
+kable(delay_airline, caption = "Table 5. Delayed Flights by Airline", col.names = c("Airline", "Avg Delay"))
+```
+
+Map delays per city and per airline. 
+
+```{r}
+ggplot(flights, aes(x = city, y = delayed_ratio, group = airline, color = airline, shape = airline)) + 
+  geom_point(aes(shape = airline)) + 
+  geom_line() + 
+  labs(x = "City", y = "Delay") + 
+  theme(legend.title=element_blank())
+```
+
+## Conclusion
+
+It appear that Alaska Airlines enjoys better performances comparing to America West Airlines for all cities we have the data for. In my opinion this is generally in line with conventional knowledge of Alaska Airlines being the better of the two airlines. Even though the Alaska Airlines seems to have less delays that America West Airlines, the pattern of delays is similar between various cities with San Francisco experiencing the most delayed flights. This indicates that delays are most likely not only due to airline performance, but also due to airport performance.  
