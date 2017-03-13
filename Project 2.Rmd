@@ -1,0 +1,354 @@
+---
+title: "DATA 607 Project 2"
+author: "Ilya Kats"
+date: "March 12, 2017"
+params:
+  username: "root"
+  password: ""
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<STYLE>
+table {
+    border: 1px solid black;
+}
+th {
+    background-color: rgb(112, 196, 105);
+    color: white;
+    font-weight: bold;
+    padding: 20px 30px;
+}
+tr:nth-child(even) {
+    background-color: rgb(220,220,220);
+}
+tr:nth-child(odd) {
+    background-color: rgb(255, 255, 255);
+}
+</STYLE>
+
+## Project 2: Data Analysis
+
+### Setup
+
+```{r libraries, results='hide', message=FALSE}
+library(RCurl)
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(stringr)
+```
+
+## DATA SET 1: Congressional Voting Records
+
+This data set includes votes for each of the U.S. House of Representatives Congressmen on the 16 key votes in 1984 identified by the Congressional Quarterly Almanac (CQA). The CQA lists nine different types of votes: voted for, paired for, and announced for (these three simplified to yea), voted against, paired against, and announced against (these three simplified to nay), voted present, voted present to avoid conflict of interest, and did not vote or otherwise make a position known (these three simplified to an unknown disposition).
+
+Data was identified by **Nkasi Nedd** and is available at UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Congressional+Voting+Records).
+
+__*Requested Analysis:*__ Which issue attracted the most difference/common ground between members of congress according to party affiliation?
+
+### Data Import
+
+```{r}
+votes <- read.csv(text=getURL("https://archive.ics.uci.edu/ml/machine-learning-databases/voting-records/house-votes-84.data"), 
+                  header = FALSE, sep = ",")
+```
+
+Sample of raw data: 
+```{r echo=FALSE}
+kable(head(votes))
+```
+
+### Data Tidying
+
+```{r}
+# Set column names
+names(votes) <- c("party",
+                  "handicapped-infants",
+                  "water-project-cost-sharing",
+                  "adoption-of-the-budget-resolution",
+                  "physician-fee-freeze",
+                  "el-salvador-aid",
+                  "religious-groups-in-schools",
+                  "anti-satellite-test-ban",
+                  "aid-to-nicaraguan-contras",
+                  "mx-missile",
+                  "immigration",
+                  "synfuels-corporation-cutback",
+                  "education-spending",
+                  "superfund-right-to-sue",
+                  "crime",
+                  "duty-free-exports",
+                  "export-administration-act-south-africa")
+
+# Gather all data into a tidy format with 3 variables - party, issue and vote
+votes <- votes %>% gather(issue, vote, 2:17)
+
+# Update vote variable with more descriptive values
+votes$vote[votes$vote == 'y'] <- "Yes"
+votes$vote[votes$vote == 'n'] <- "No"
+votes$vote[votes$vote == '?'] <- "Unknown"
+```
+
+Sample of tidy data:
+```{r echo=FALSE}
+kable(head(votes))
+```
+
+### Data Analysis
+
+```{r}
+# Get counts of each vote type by issue
+votesum <- votes %>% 
+  group_by(issue, vote) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(vote), count)
+
+# Convert issues to factor to preserve sort order
+votesum$issue <- factor(votesum$issue, levels = unique(votesum$issue))
+
+# Plot vote counts by issue
+ggplot(votesum, aes(issue, count, fill = vote)) + 
+  geom_col() + 
+  coord_flip() + 
+  labs(x = "", y = "", caption="Plot 1. Split of votes per issue.") +
+  scale_fill_manual(values=c("#FF6666", "#C3C3C3", "#49AE49"), name = "Vote")
+```
+
+The plot above shows all 16 issues and illustrates Yes, No, Unknown votes per issue. Party affiliation is not included in this plot. It appears that the 98th Congress was not close to being unanimous on any of the issues. As a side quest, I became curious why so many votes show up as Unknown for `export-administration-act-south-africa` issue. It appears that the 1984 amendement to the Export Administration Act was a particularly contentious issue during the Reagan Administration. 
+
+In order to evaluate which issue had or lacked bipartisan support, I concentrated analysis only on Yea votes. By evaluating where the party split is among the Yea votes, it can be assumed that a similar split exists in the Nay votes. Possible drawback of this approach is that Unknown votes are not considered; however, it should be enough for a quick analysis (especially considering that this data set already includes simplification of congressional votes). 
+
+```{r}
+# Ananlyze Yea votes
+yesvotes <- votes %>% 
+  filter(vote == "Yes") %>%               # Get only Yea votes
+  group_by(party, issue) %>%              # Get counts of votes per party and issue
+  summarise(count = n()) %>% 
+  spread(party, count) %>%                # Spread out results for additional calculations 
+  mutate(sum = democrat+republican,       # Number of votes per issue
+         demprop = democrat / sum,        # Proportion of democratic votes per issue
+         repprop = republican / sum,      # Proportion of repubican votes per issue
+         dist05 = abs(0.5-demprop)) %>%   # Distance of split from 0.5 (closer = bipartisan support)
+  arrange(dist05)
+```
+
+Analysis of Yea votes per issue and per party affiliation: 
+```{r echo=FALSE}
+kable(yesvotes)
+```
+
+```{r}
+# Sort and gather data for plotting
+yesplot <- yesvotes %>% 
+  arrange(demprop) %>% 
+  gather(party, yescount, 5:6)
+
+# Convert issue to factor to preserve order
+yesplot$issue <- factor(yesplot$issue, levels = unique(yesplot$issue))
+
+# Plot split in Yea votes per issue
+ggplot(yesplot, aes(issue, yescount, fill = party)) + 
+  geom_col() + 
+  coord_flip() + 
+  labs(x = "", y = "", caption="Plot 2. Split of affirmative votes per party.") +
+  scale_fill_manual(values=c("#6969FF", "#FF6E6E"), name = "Party", labels = c("Democratic", "Republican"))
+```
+
+The plot above that demonstrates the split between party support of issues is somewhat confusing. It may appear that the `duty-free-exports` issue was the most contentious one; however, we do not care if an issue was supported more by republican or democractic party only which issue had the most support from one party. For this let us find the issue closest to the 50-50 split between parties and the issue furthest from the split.
+
+```{r}
+yesvotes %>% 
+  filter(dist05 == max(dist05)) %>% 
+  select(issue)
+
+yesvotes %>% 
+  filter(dist05 == min(dist05)) %>% 
+  select(issue)
+```
+
+### Conclusion
+
+It appears that `physician-fee-freeze` was the issue that was split the most along party lines in 1984. The `religious-groups-in-school` issue enjoyed the most bipartisan support. I became interested in the `education-spending` issue which seemed to enjoy a lot of republican support in 1984. I consider education to be a topic primarily supported by democrats. Researching the issue further I discovered that the act lowered education spending. That demonstrated that issue names are limited in conveying their importance or meaning. It is critical to know the background and details of data for any real-world analysis.
+
+## DATA SET 2: World Bank Data
+
+The data includes world development indicators from 1960 to 2016 covering 217 economies. It is the primary World Bank collection of development indicators, compiled from officially-recognized international sources. It presents the most current and accurate global development data available, and includes national, regional and global estimates.
+
+Data was identified by **Kyle Gilde** and is available at the World Bank website (http://data.worldbank.org/data-catalog/world-development-indicators). 
+
+__*Requested Analysis:*__ Specific analysis was not requested. I picked this data set due to its large size to see how data size influences the analysis in R. 
+
+### Data Import
+
+```{r}
+world <- read.csv("C:\\Temp\\GitHub\\WDI_Data.csv", 
+                  header = TRUE, sep = ",")
+```
+
+### Data Tidying
+
+```{r}
+# Get data dimensions
+dim(world)
+
+# Get available columns
+colnames(world)
+
+# Adjust column names
+colnames(world) <- str_replace_all(colnames(world), "X", "")
+```
+
+A portion of adjusted data:
+```{r echo=FALSE}
+kable(world[1:10, c(1, 2, 4, 5:8)])
+```
+
+```{r}
+# Convert table to the long form
+world <- world %>% 
+  gather(year, value, 5:61)
+```
+ 
+The data includes 1,452 indicators. I have noticed that there are several indicators tracking number of female and male over-age students. Being an over-age student myself, I have decided to do a quick analysis of this category. I did not go into detail what is implied by an over-age student in this data. Relevant indicators are as follows.
+
+```{r}
+world %>% 
+  filter(grepl('over-age',Indicator.Name, ignore.case = TRUE)) %>% 
+  distinct(Indicator.Name)
+
+# Select data relevant to the indicators to be analyzed
+# Remove NAs and zeros
+# Put female, male and total numbers into separate columns
+students <- world %>% 
+  filter(grepl('over-age',Indicator.Name, ignore.case = TRUE), !is.na(value), value != 0)  %>% 
+  select(Country.Name, Indicator.Code, year, value) %>% 
+  spread(Indicator.Code, value)
+
+# Adjust column names
+colnames(students) <- c("country", "year", "students_female", "students_male", "students_all")
+```
+
+A sample of tidy data to be used for analysis:
+```{r echo=FALSE}
+kable(head(students))
+```
+
+### Data Analysis
+
+Create boxplots per year for all countries combines. 
+
+```{r}
+# Boxplots per year for all countries
+ggplot(filter(students, !is.na(students_all)), aes(x = year, y = students_all)) + 
+  geom_boxplot() + 
+  labs(x = "Year", y = "% of Over-Age Students", caption = "Plot 3. Boxplots for all students by year.") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Create point plot per country per year.
+
+```{r}
+ggplot(filter(students, !is.na(students_all)), aes(x = year, y = country)) + 
+  geom_point(aes(color = students_all)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        axis.text.y = element_blank()) +
+  scale_color_continuous(limits = c(0,30), name = "") + 
+  labs(x = "", y = "Country", caption = "Plot 4. Availability of data by year and country.")
+```
+
+### Conclusion
+
+An interesting discovery looking at the boxplots is that the mean of number of over-age students dropped from 1960 to the present. Either the category implies adults going back for high-school level education (then the drop is a positive change) or adults continuing their higher level education (then I would consider the drop to be a negative change). Looking at the point graph, even with limited country detail, it is clear that there are a lot of gaps in the data especially between 1998 and 2012. Additionally, I have discovered that when in small data sets it really doesn't matter what method you use to analyze it since results come up quickly, with large data sets, efficiency in code may have significant impact on efficiency of analysis. 
+
+## DATA SET 3: Shipping Analysis
+
+The data includes shipping costs and collections per country. This sample analysis can be used for operational improvements. I have picked this data set because it had a number of issues that required tidying up. 
+
+Data was provided by **Cesar Espitia**.
+
+__*Requested Analysis:*__ Do collected fees cover company's cost? What is the shipping cost per month? Per country?
+
+### Data Import
+
+```{r}
+shipping <- read.csv("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Discussion5.csv", 
+                     header = TRUE, sep = ",")
+```
+
+Raw data: 
+```{r echo=FALSE}
+kable(shipping)
+```
+
+### Data Tidying
+
+```{r warning=FALSE}
+# Populate blank values in the Date column with a date from previous row
+shipping[c(FALSE, TRUE),1] <- shipping[c(TRUE, FALSE), 1]
+
+# Rearrange data
+shipping <- shipping %>% 
+  gather(Country, Amount, 3:10) %>%     # Collapse data into a narrow format
+  filter(!is.na(Amount)) %>%            # Remove NAs
+  spread(Values, Amount)                # Expand Cost and Collected values into two columns
+
+# Adjust column names
+colnames(shipping) <- c("Date", "Country", "Cost", "Collected")
+
+# Convert cost and collected amounts to number
+shipping$Cost <- as.numeric(shipping$Cost)
+shipping$Collected <- as.numeric(shipping$Collected)
+
+# Remove records that did not have numeric Cost or Collected values
+shipping <- shipping %>% filter(!is.na(Cost), !is.na(Collected))
+```
+
+Tidy data:
+```{r echo=FALSE}
+kable(shipping)
+```
+
+### Data Analysis
+
+```{r}
+# Get country specific data
+countrydata <- shipping %>% 
+  group_by(Country) %>% 
+  summarise(SumCost = sum(Cost), SumCollected = sum(Collected)) %>%  # Total amounts per country 
+  mutate(Total = SumCollected - SumCost) %>%                         # Get the difference between amounts
+  arrange(Total)
+```
+
+```{r echo=FALSE}
+kable(countrydata)
+```
+
+```{r}
+# Get monthly data
+monthdata <- shipping %>% 
+  separate(Date, c("Month", "Day", "Year"), sep = "/", remove=FALSE) %>%   # Split date into components
+  group_by(Month, Year) %>%                                                # Group by month/year
+  summarise(SumCost = sum(Cost), SumCollected = sum(Collected)) %>%
+  mutate(Total = SumCollected - SumCost, 
+         MonthNo = as.numeric(Month),                      # Convert month to number for sorting
+         YearNo = as.numeric(Year),                        # Convert year to number for sorting
+         Period = paste(Month, Year, sep="/")) %>%         # Combine month and year for output
+  arrange(YearNo, MonthNo) %>%                             # Sort
+  group_by() %>%                                           # Remove grouping
+  select(Period, SumCost, SumCollected, Total)             # Select field for output
+```
+
+```{r echo=FALSE}
+kable(monthdata)
+```
+
+### Conclusion
+
+Based on the sample data it does not appear that the company recoups shipping charges. Shipping to China generates particularly big losses, but shipping to Canada is slightly profitable. Monthly data can be easily generated using `dplyr` and `tidyr` with provided format.
