@@ -608,7 +608,7 @@ ggplot(yesplot, aes(issue, yescount, fill = party)) +
 <p><strong><em>Requested Analysis:</em></strong> Specific analysis was not requested. I picked this data set due to its large size to see how data size influences the analysis in R.</p>
 <div id="data-import-1" class="section level3">
 <h3>Data Import</h3>
-<pre class="r"><code>world &lt;- read.csv(&quot;C:\\Temp\\GitHub\\CUNY-DATA607\\WDI_Data.csv&quot;, 
+<pre class="r"><code>world &lt;- read.csv(&quot;C:\\Temp\\GitHub\\WDI_Data.csv&quot;, 
                   header = TRUE, sep = &quot;,&quot;)</code></pre>
 </div>
 <div id="data-tidying-1" class="section level3">
@@ -850,7 +850,7 @@ ggplot(filter(students, !is.na(students_all)), aes(x = year, y = students_all)) 
 <p><strong><em>Requested Analysis:</em></strong> Do collected fees cover company’s cost? What is the shipping cost per month? Per country?</p>
 <div id="data-import-2" class="section level3">
 <h3>Data Import</h3>
-<pre class="r"><code>shipping &lt;- read.csv(&quot;C:\\Temp\\GitHub\\CUNY-DATA607\\Discussion5.csv&quot;, 
+<pre class="r"><code>shipping &lt;- read.csv(&quot;https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Discussion5.csv&quot;, 
                      header = TRUE, sep = &quot;,&quot;)</code></pre>
 <p>Raw data:</p>
 <table>
