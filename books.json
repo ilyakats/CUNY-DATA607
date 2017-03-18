@@ -1,0 +1,50 @@
+{"scifi_books" : [
+	{
+	"title" : "2001: A Space Odyssey",
+	"author" : "Arthur C. Clarke",
+	"year" : "1968",
+	"isbn" : "0-453-00269-2",
+	"film" : [{
+		"name" : "2001: A Space Odyssey",
+		"director" : "Stanley Kubrick",
+		"year" : "1968"
+		}]
+	},
+	{
+	"title" : "Fahrenheit 451",
+	"author" : "Ray Bradbury",
+	"year" : "1953",
+	"isbn" : "978-0-7432-4722-1",
+	"award" : [{
+		"name" : "Retro Hugo",
+		"year" : "2004"
+		},
+		{
+		"name" : "Prometheus Award",
+		"year" : "1984"
+		}],
+	"film" : [{
+		"name" : "Fahrenheit 451",
+		"director" : "François Truffaut",
+		"year" : "1966"
+		}]
+	},
+	{
+	"title" : "The Gods Themselves",
+	"author" : "Isaac Asimov",
+	"year" : "1972",
+	"isbn" : "0-385-02701-X",
+	"award" : [{
+		"name" : "Nebula Award",
+		"year" : "1972"
+		},
+		{
+		"name" : "Hugo Award",
+		"year" : "1973"
+		},
+		{
+		"name" : "Locus Award",
+		"year" : "1973"
+		}]
+	}]
+}

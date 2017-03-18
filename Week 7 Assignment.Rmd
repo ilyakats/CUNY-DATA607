@@ -1,0 +1,44 @@
+---
+title: "DATA 607 Week 7 Assignment: HTML, XML, JSON Parsing"
+author: "Ilya Kats"
+date: "March 18, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<STYLE>
+table {
+    border: 1px solid black;
+}
+th {
+    background-color: rgb(112, 196, 105);
+    color: white;
+    font-weight: bold;
+    padding: 20px 30px;
+}
+tr:nth-child(even) {
+    background-color: rgb(220,220,220);
+}
+tr:nth-child(odd) {
+    background-color: rgb(255, 255, 255);
+}
+</STYLE>
+
+## Required Libraries
+
+```{r requirements, results='hide', message=FALSE}
+library(rjson)
+library(RJSONIO)
+```
+
+## Data Import: JSON
+
+
+## Conclusion
+
+TBD

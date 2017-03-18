@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<!DOCTYPE scifi_books [
+<!ELEMENT scifi_books (book)>
+<!ELEMENT book (title,author,year,isbn,award*,film*)>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT author (#PCDATA)>
+<!ELEMENT year (#PCDATA)>
+<!ELEMENT isbn (#PCDATA)>
+<!ELEMENT award (#PCDATA)>
+<!ELEMENT film (#PCDATA)>
+<!ATTLIST book
+ id CDATA #REQUIRED>
+<!ATTLIST award
+ name CDATA #REQUIRED
+ year CDATA #IMPLIED>
+<!ATTLIST film
+ name CDATA #REQUIRED
+ director CDATA #IMPLIED
+ year CDATA #IMPLIED>
+]>
+<scifi_books>
+	<book id="1">
+		<title>2001: A Space Odyssey</title>
+		<author>Arthur C. Clarke</author>
+		<year>1968</year>
+		<isbn>0-453-00269-2</isbn>
+		<film name="2001: A Space Odyssey" director="Stanley Kubrick" year="1968" />
+	</book>
+	<book id="2">
+		<title>Fahrenheit 451</title>
+		<author>Ray Bradbury</author>
+		<year>1953</year>
+		<isbn>978-0-7432-4722-1</isbn>
+		<award name="Retro Hugo" year="2004" />
+		<award name="Prometheus Award" year="1984" />
+		<film name="Fahrenheit 451" director="François Truffaut" year="1966" />
+	</book>
+	<book id="3">
+		<title>The Gods Themselves</title>
+		<author>Isaac Asimov</author>
+		<year>1972</year>
+		<isbn>0-385-02701-X</isbn>
+		<award name="Nebula Award" year="1972" />
+		<award name="Hugo Award" year="1973" />
+		<award name="Locus Award" year="1973" />
+	</book>
+</scifi_books>
