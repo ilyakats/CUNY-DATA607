@@ -4,6 +4,7 @@
 	"author" : "Arthur C. Clarke",
 	"year" : "1968",
 	"isbn" : "0-453-00269-2",
+	"award" : [],
 	"film" : [{
 		"name" : "2001: A Space Odyssey",
 		"director" : "Stanley Kubrick",
@@ -25,7 +26,7 @@
 		}],
 	"film" : [{
 		"name" : "Fahrenheit 451",
-		"director" : "François Truffaut",
+		"director" : "Francois Truffaut",
 		"year" : "1966"
 		}]
 	},
@@ -45,6 +46,7 @@
 		{
 		"name" : "Locus Award",
 		"year" : "1973"
-		}]
+		}],
+	"film" : []
 	}]
 }
