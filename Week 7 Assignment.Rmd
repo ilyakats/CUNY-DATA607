@@ -1,5 +1,5 @@
 ---
-title: "DATA 607 Week 7 Assignment: HTML, XML, JSON Parsing"
+title: "DATA 607 Week 7 Assignment: HTML, XML, JSON"
 author: "Ilya Kats"
 date: "March 18, 2017"
 output:
@@ -12,8 +12,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 <STYLE>
+body {
+    font-size: 18px;
+}
 table {
     border: 1px solid black;
+    font-size: 14px;
 }
 th {
     background-color: rgb(112, 196, 105);
@@ -29,36 +33,123 @@ tr:nth-child(odd) {
 }
 </STYLE>
 
+## Task
+
+For this assignment I have created a listing of several of my favorite science fiction books in three formats - HTML table, XML and JSON. All files were created by hand in a text editor. All have just one author; however, I have added the awards information to satisfy the requirement of having multiple values in a field. The task is to import all files and convert them to data frames. Original file content and all R code is below.
+
 ## Required Libraries
 
-```{r requirements, results='hide', message=FALSE}
+```{r requirements, results='hide', message=FALSE, warning=FALSE}
 library(dplyr)
 library(stringr)
-library(XML)
+library(XML)       # For HTML and XML manipulation
 library(RCurl)
-library(tidyjson)
+library(tidyjson)  # For JSON manipulation
 ```
 
-## Data Import: HTML
+## HTML
+
+### Original File
+
+```{r comment="", echo=FALSE, warning=FALSE}
+cat(readLines("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.html"), sep = "\n")
+```
+
+### Data Import and Manipulation
 
 ```{r}
+# Import HTML file
 htmlFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.html")
+
+# Parse HTML table
 booksHTML <- readHTMLTable(htmlFile, header = TRUE)
+
+# Convert to data frame and adjust column names
+booksHTML <- as.data.frame(booksHTML)
+colnames(booksHTML) <- c("title", "author", "year", "isbn", "award", "film")
+
+# Adjust award column
+booksHTML$award <- str_replace_all(booksHTML$award, "\t", "")
+booksHTML$award <- str_replace_all(booksHTML$award, "\n", "; ")
 ```
 
-## Data Import: XML
+### Converted Data Frame
+
+```{r echo=FALSE}
+knitr::kable(booksHTML)
+```
+
+The data was loaded and converted to a data frame with minimal manipulation (just minor clean-up). Of course, there is still a question about what to do with multiple award values for a given book. Film attributes can also be split accross multiple columns.
+
+## XML
+
+### Original File
+
+```{r comment="", echo=FALSE, warning=FALSE}
+cat(readLines("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.xml"), sep = "\n")
+```
+
+### Data Import and Manipulation
 
 ```{r}
+# Import XML file
 xmlFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.xml")
-booksXML <- xmlParse(xmlFile, validate = TRUE)
+
+# Parse XML and get root
+booksXML <- xmlParse(xmlFile)
+root <- xmlRoot(booksXML)
+
+# Convert main fields to data frame
+booksXML <- xmlToDataFrame(root)
+
+# Loop through XML nodes to get film attributes
+for (i in 1:xmlSize(root)) {
+  if (!is.null(root[[i]][["film"]])) { 
+    booksXML[i, "film"] <- paste(xmlAttrs(root[[i]][["film"]]), collapse = " - ")
+  }
+}
+
+# Loop thorugh XML nodes to collect award data
+for (i in 1:xmlSize(root)) {
+  if (!is.null(root[[i]][["awardlist"]])) { 
+    awards <- xmlChildren(root[[i]][["awardlist"]])
+    awardlist <- ""
+    for (j in 1:xmlSize(awards)) {
+      jaward <- paste(xmlValue(awards[[j]][["name"]]), xmlValue(awards[[j]][["year"]]), sep = " - ")
+      if (j==1) {sep <- ""} else {sep <- "; "}
+      awardlist <- paste(awardlist, jaward, sep = sep)
+    }
+    booksXML[i, "awardlist"] <- awardlist
+  }
+}
+
+
 ```
 
-## Data Import: JSON
+### Converted Data Frame
+
+```{r echo=FALSE}
+knitr::kable(booksXML)
+```
+
+XML format required more work. Main fields were easily converted, but it took a couple of loops to traverse the XML tree structure to gather film attributes and award information. For this exercise, multiple awards were merged into a single entry similar to HTML output.
+
+## JSON
+
+### Original File
+
+```{r comment="", echo=FALSE, warning=FALSE}
+cat(readLines("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json"), sep = "\n")
+```
+
+### Data Import and Manipulation
 
 ```{r}
-jsonFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json", .encoding = "Windows-1252")
+# Import JSON file
+jsonFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json")
 
-books <- jsonFile %>% 
+# Parse book data
+booksJSON <- jsonFile %>% 
   enter_object("scifi_books") %>% 
   gather_array("book.id") %>% 
   spread_values(title = jstring("title"), 
@@ -66,31 +157,41 @@ books <- jsonFile %>%
                 year = jnumber("year"), 
                 isbn = jstring("isbn"))
 
+# Parse award data
 awards <- jsonFile %>% 
   enter_object("scifi_books") %>% 
-  gather_array("book.id") %>% 
-  enter_object("award") %>% 
+  gather_array("book.id") %>%                    # Get id for all books to join later
+  enter_object("award") %>%                      # Get a listing of all awards
   gather_array() %>% 
   spread_values(award.name = jstring("name"),
                 award.year = jnumber("year"))
 
+# Parse film data
 films <- jsonFile %>% 
   enter_object("scifi_books") %>% 
-  gather_array("book.id") %>% 
-  enter_object("film") %>% 
+  gather_array("book.id") %>%                    # Get id for all books to join later
+  enter_object("film") %>%                       # Get a listing of all films
   gather_array() %>% 
   spread_values(film.title = jstring("name"),
                 film.director = jstring("director"),
                 film.year = jnumber("year"))
 
-
-books %>% 
+# Merge book, award and film data
+booksJSONflat <- booksJSON %>% 
   left_join(awards, by = "book.id") %>% 
   left_join(films, by = "book.id") %>% 
   select(book.id, title, author, year, isbn, award.name, award.year, 
          film.title, film.director, film.year)
 ```
 
+### Converted Data Frame
+
+```{r echo=FALSE}
+knitr::kable(booksJSONflat)
+```
+
+With some research `tidyjson` package turned out to be very powerful in manipulating JSON data. For this exercise I went with a long structure for the data frame based on award data. 
+
 ## Conclusion
 
-TBD
+It took quite a bit of time to figure out how to traverse different data structures. XML and JSON allow for the most flexibility in manipulating stored data. HTML is simplier to handle, but much less flexible.
