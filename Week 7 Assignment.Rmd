@@ -32,12 +32,45 @@ tr:nth-child(odd) {
 ## Required Libraries
 
 ```{r requirements, results='hide', message=FALSE}
-library(rjson)
+library(stringr)
+library(XML)
+library(RCurl)
 library(RJSONIO)
+```
+
+## Data Import: HTML
+
+```{r}
+htmlFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.html")
+booksHTML <- readHTMLTable(htmlFile, header = TRUE)
+```
+
+## Data Import: XML
+
+```{r}
+xmlFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.xml")
+booksXML <- xmlParse(xmlFile, validate = TRUE)
 ```
 
 ## Data Import: JSON
 
+```{r}
+jsonFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json", .encoding = "Windows-1252")
+
+jsonFile %>% 
+  enter_object("scifi_books") %>% 
+  gather_array() %>% 
+  spread_values(title = jstring("title"), 
+                author = jstring("author"),
+                year = jnumber("year"), 
+                isbn = jstring("isbn")) %>% 
+  enter_object("film") %>% 
+  gather_array() %>% 
+  spread_values(filmtitle = jstring("name"))
+  
+# Load file
+books <- fromJSON("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json")
+```
 
 ## Conclusion
 

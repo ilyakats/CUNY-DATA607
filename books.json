@@ -4,7 +4,6 @@
 	"author" : "Arthur C. Clarke",
 	"year" : "1968",
 	"isbn" : "0-453-00269-2",
-	"award" : [],
 	"film" : [{
 		"name" : "2001: A Space Odyssey",
 		"director" : "Stanley Kubrick",
@@ -14,6 +13,7 @@
 	{
 	"title" : "Fahrenheit 451",
 	"author" : "Ray Bradbury",
+	"year" : "1953",
 	"isbn" : "978-0-7432-4722-1",
 	"award" : [{
 		"name" : "Retro Hugo",
@@ -46,10 +46,6 @@
 		"name" : "Locus Award",
 		"year" : "1973"
 		}],
-	"film" : [{
-		"name" : "",
-		"director" : "",
-		"year" : ""
-		}]
+
 	}]
 }
