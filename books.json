@@ -47,6 +47,10 @@
 		"name" : "Locus Award",
 		"year" : "1973"
 		}],
-	"film" : []
+	"film" : [{
+		"name" : "",
+		"director" : "",
+		"year" : ""
+		}]
 	}]
 }
