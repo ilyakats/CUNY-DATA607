@@ -32,10 +32,11 @@ tr:nth-child(odd) {
 ## Required Libraries
 
 ```{r requirements, results='hide', message=FALSE}
+library(dplyr)
 library(stringr)
 library(XML)
 library(RCurl)
-library(RJSONIO)
+library(tidyjson)
 ```
 
 ## Data Import: HTML
@@ -57,19 +58,37 @@ booksXML <- xmlParse(xmlFile, validate = TRUE)
 ```{r}
 jsonFile <- getURL("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json", .encoding = "Windows-1252")
 
-jsonFile %>% 
+books <- jsonFile %>% 
   enter_object("scifi_books") %>% 
-  gather_array() %>% 
+  gather_array("book.id") %>% 
   spread_values(title = jstring("title"), 
                 author = jstring("author"),
                 year = jnumber("year"), 
-                isbn = jstring("isbn")) %>% 
+                isbn = jstring("isbn"))
+
+awards <- jsonFile %>% 
+  enter_object("scifi_books") %>% 
+  gather_array("book.id") %>% 
+  enter_object("award") %>% 
+  gather_array() %>% 
+  spread_values(award.name = jstring("name"),
+                award.year = jnumber("year"))
+
+films <- jsonFile %>% 
+  enter_object("scifi_books") %>% 
+  gather_array("book.id") %>% 
   enter_object("film") %>% 
   gather_array() %>% 
-  spread_values(filmtitle = jstring("name"))
-  
-# Load file
-books <- fromJSON("https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/books.json")
+  spread_values(film.title = jstring("name"),
+                film.director = jstring("director"),
+                film.year = jnumber("year"))
+
+
+books %>% 
+  left_join(awards, by = "book.id") %>% 
+  left_join(films, by = "book.id") %>% 
+  select(book.id, title, author, year, isbn, award.name, award.year, 
+         film.title, film.director, film.year)
 ```
 
 ## Conclusion
