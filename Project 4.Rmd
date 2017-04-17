@@ -1,0 +1,681 @@
+---
+title: "DATA 607 Project 4: Text Mining"
+author: "Ilya Kats"
+date: "April 16, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<STYLE>
+body {
+    font-size: 18px;
+}
+table {
+    border: 1px solid black;
+    font-size: 14px;
+}
+th {
+    background-color: rgb(112, 196, 105);
+    color: white;
+    font-weight: bold;
+    padding: 20px 30px;
+}
+tr:nth-child(even) {
+    background-color: rgb(220,220,220);
+}
+tr:nth-child(odd) {
+    background-color: rgb(255, 255, 255);
+}
+</STYLE>
+
+## Introduction
+
+The original assignment called for modeling and categorization of a spam/ham email set. I wanted to practice data scraping some more, so I have decided to pick a different data set. I have settled on reviewing movie plots and categorizing them by genre. 
+
+## Required Libraries
+
+```{r requirements, results='hide', message=FALSE, warning=FALSE}
+# For data scraping
+library(XML)
+library(RCurl)
+library(urltools)
+library(tidyjson)
+
+# For data tidying
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+# For data mining
+library(tidytext)
+library(RTextTools)
+
+# For data graphing
+library(ggplot2)
+library(gridExtra)
+```
+
+## Data Scraping: Part I
+
+### Collecting List of Films
+
+It would not be practical for this assignment to try to collect a very large data set. I needed a movie list that I can use to base my collection on and American Film Institute's **100 Years...** series popped into my mind. AFI released lists of 100 notable movies in various categories from 1998 to 2008. I have used a Wikipedia [article](https://en.wikipedia.org/wiki/AFI_100_Years..._series) about the series as my starting point.
+ 
+```{r}
+# Get the main URL and read in the HTML text
+urlRoot <- "https://en.wikipedia.org"
+urlMain <- "/wiki/AFI_100_Years..._series"
+links <- getURL(str_c(urlRoot, urlMain))
+links <- htmlParse(links)
+
+# Read the links to all lists
+links <- xpathSApply(links, "//div[@id='mw-content-text']//table[@class='infobox']//a", xmlGetAttr, "href")
+
+# Several of collected links were extraneous
+# Remove them by finding only links without the term 'Template'
+links <- links[str_detect(links, "^((?!Template).)*$")]
+```
+
+Collected links are in the table below. 
+
+```{r echo=FALSE}
+knitr::kable(links)
+```
+
+
+Now I will loop through all lists and collect individual film tables form each.
+
+```{r eval=FALSE}
+# Create empty data frame to store list of films
+films <- data.frame(film=character(), year=integer())
+
+# Loop through all links with the exception of last one
+for(i in 1:(length(links)-1)) {
+  # Get URL and read HTML table
+  url <- getURL(str_c(urlRoot, links[i]))
+  tmp <- readHTMLTable(url, which = 2)
+  
+  # If table contains two columns - Film and Year - then proceed 
+  if (any(str_detect(str_to_lower(colnames(tmp)), "film")) && 
+      any(str_detect(str_to_lower(colnames(tmp)), "year"))) {
+    # Isolate columns containing film name and release year
+    tmp <- tmp[, c(which(str_detect(str_to_lower(colnames(tmp)), "film")), 
+                   which(str_detect(str_to_lower(colnames(tmp)), "year")))]
+    colnames(tmp) <- c("film", "year")
+    
+    # Store discovered films in main data frame
+    films <- rbind(films, tmp)
+  }
+}
+
+# The last link is special as it contains 10 tables of 10 films 
+# rather than 1 table of 100 films
+# Loop through all 10 tables
+# Same logic as in the loop above
+for(i in 2:11) {
+  url <- getURL(str_c(urlRoot, links[length(links)]))
+  tmp <- readHTMLTable(url, which = i)
+  if (any(str_detect(str_to_lower(colnames(tmp)), "film")) && 
+      any(str_detect(str_to_lower(colnames(tmp)), "year"))) {
+    tmp <- tmp[, c(which(str_detect(str_to_lower(colnames(tmp)), "film")), 
+                   which(str_detect(str_to_lower(colnames(tmp)), "year")))]
+    colnames(tmp) <- c("film", "year")
+    
+    films <- rbind(films, tmp)
+  }
+}
+
+# Get rid of duplicate films
+films <- films %>% 
+  group_by(film, year) %>% 
+  summarize() 
+
+# Convert result into data frame
+films <- as.data.frame(films)
+```
+
+At this point I have noticed that there are definitely some film titles that are not formatted properly; however, I only need a sample of some film plots to test my analysis. I am not looking for perfect data collection.
+
+### Collecting Film Plots
+
+To collect film plots I have used [OMDb API](http://www.omdbapi.com/) developed by Brian Fritz. It retrieves film plot, genre, ratings, and some other variables from the IMDb repository. Several search parameters are accepted, but I am most interested in searching by film title and release year. 
+
+```{r eval=FALSE}
+# Create empty data frame to store film plots
+film_plots <- data.frame(film=character(),      # Store film title
+                         year=integer(),        # Store release year
+                         genre=character(),     # Store film genre
+                         imdbID=character(),    # Store IMDb ID
+                         plot=character())      # Store full film plot
+
+# Loop through all films
+for(i in 1:nrow(films)) {
+  # Get film title and release year
+  title <- as.character(films[i,1])
+  year <- as.character(films[i,2])
+  
+  # Format film title with URL encoding
+  title <- url_encode(title)
+  
+  # Send API request
+  url <- str_c("http://www.omdbapi.com/?t=", title, "&y=", year, "&type=movie&plot=full")
+  request <- getURL(url)
+  
+  # Check that result is valid JSON
+  # This check was added because some API requests were timing out with HTML error
+  if(jsonlite::validate(request)) {
+    # Check API response to confirm that request resulted in a hit
+    response <- request %>% spread_values(response = jstring("Response"))
+    if(response$response=="True") {
+      # Collect data
+      request <- request %>% spread_values(title = jstring("Title"), 
+                                           year = jstring("Year"), 
+                                           genre = jstring("Genre"), 
+                                           imdbID = jstring("imdbID"), 
+                                           plot = jstring("Plot")) %>% 
+        select(title, year, genre, imdbID, plot)
+      
+      # Add data to main data frame
+      film_plots <- rbind(film_plots, request)
+    }
+  }
+  # Pause, so not to overwhelm OMDb site 
+  Sys.sleep(1)
+}
+
+# Remove duplicate films
+film_plots <- film_plots %>% 
+  group_by(title, year, genre, imdbID, plot) %>% 
+  summarize() 
+```
+
+Since it took some time to collect film plots for hundreds of films, I have saved the data frame to a CSV file. This also helps preserve data to make analysis reproducable in the future. 
+
+```{r eval=FALSE}
+write.csv(film_plots, file = "film_plots.csv", row.names = FALSE)
+```
+
+```{r}
+film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots.csv")
+```
+
+A sample of collected film plots is in the table below. 
+
+```{r echo=FALSE}
+knitr::kable(head(film_plots))
+```
+
+### Data Analysis
+
+As the table above shows IMDb stores multiple values for film genre. For this assignment I decided to concentrate only on *Drama* and *Comedy*. I have selected only films that include one of the two classifiers, but not the other (*Comedy*, but not *Drama*, and vice versa). Everything else has been discarded.
+
+```{r}
+# Add column 'class' to data frame to store primary genre/classifier
+film_plots["class"] <- NA
+
+# Assign classifier values
+film_plots[str_detect(film_plots$genre, "Drama")!=TRUE & 
+             str_detect(film_plots$genre, "Comedy")==TRUE, 6] <- "Comedy"
+film_plots[str_detect(film_plots$genre, "Drama")==TRUE & 
+             str_detect(film_plots$genre, "Comedy")!=TRUE, 6] <- "Drama"
+
+# Remove entries without Class
+film_plots <- film_plots %>% 
+  ungroup() %>% 
+  filter(!is.na(class)) %>% 
+  select(title, year, class, imdbID, plot)
+
+table(film_plots$class)
+```
+
+There are not a lot of values for each class, but there are some. I have had some success with **tidyverse** in prior assignments. I have decided to try `tidytext` for text mining and analysis.
+
+```{r}
+# Load stop words
+data("stop_words")
+
+film_plots$plot <- as.character(film_plots$plot)
+
+# Get tidy data frame of all words and remove stop words
+tidy_plots <- film_plots %>% 
+  unnest_tokens(word, plot) %>% 
+  anti_join(stop_words, by = "word")
+
+# Get top plot words for comedies
+plot_comedy <- tidy_plots %>% 
+  group_by(class, word) %>% 
+  summarize(count = n()) %>% 
+  filter(class == "Comedy") %>% 
+  arrange(desc(count)) %>% 
+  top_n(10, count) %>% 
+  mutate(word = reorder(word, count)) %>% 
+  ggplot(aes(word, count)) +
+  geom_bar(stat = "identity", fill = "red") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Comedy Words")
+
+# Get top plot words for dramas
+plot_drama <- tidy_plots %>% 
+  group_by(class, word) %>% 
+  summarize(count = n()) %>% 
+  filter(class == "Drama") %>% 
+  arrange(desc(count)) %>% 
+  top_n(10, count) %>% 
+  mutate(word = reorder(word, count)) %>% 
+  ggplot(aes(word, count, fill = class)) +
+  geom_bar(stat = "identity", fill = "blue") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Drama Words")
+
+grid.arrange(plot_comedy, plot_drama, ncol=2)
+```
+
+Top Drama words seem to be a good fit, but looking at top Comedy words, some appear to be more logical than others. And there is some overlap between top Drama and Comedy words. I decided to look at top words using **term frequency-inverse document frequency** method. 
+```{r}
+# Count number of times each word is mentioned
+plot_words <- tidy_plots %>% 
+  count(class, word, sort = TRUE) %>% 
+  ungroup()
+
+# Count number of words per class
+total_words <- plot_words %>% 
+  group_by(class) %>% 
+  summarize(total = sum(n))
+
+# Combine two counts
+plot_words <- left_join(plot_words, total_words, by = "class")
+
+# Generate tf-idf values
+plot_words <- plot_words %>% 
+  bind_tf_idf(word, class, n)
+
+head(plot_words)
+
+plot_comedy <- plot_words %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Comedy") %>% 
+  top_n(10, tf_idf) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n)) +
+  geom_bar(stat = "identity", fill = "red") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Comedy Words (tf-idf)")
+
+plot_drama <- plot_words %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Drama") %>% 
+  top_n(10, tf_idf) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n)) +
+  geom_bar(stat = "identity", fill = "blue") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Drama Words (tf-idf)")
+
+grid.arrange(plot_comedy, plot_drama, ncol=2)
+```
+
+Using **tf-idf** the words are a lot more specific. However, there are clearly some words that only appear on the list because of one or two movies. For example, *shrek* or *woody* (which I thought was a reference to Woody Allen since it is in a Comedy class of critically acclaimed films, but it actually refers to Woody from *Toy Story*). I have decided to collect more film plots for a bigger data set.
+
+## Data Scraping: Part II
+
+As I mentioned above I was suspecting that my data set is not large enough for text mining.
+
+### Collecting and Tidying Additional Data
+
+To expand the film list, I went with the [National Film Registry](https://www.loc.gov/programs/national-film-preservation-board/film-registry/complete-national-film-registry-listing/) of the Library of Congress. Methodology was very similar to Part I. 
+
+```{r eval=FALSE}
+# Get URL and read HTML table
+url <- getURL("https://www.loc.gov/programs/national-film-preservation-board/film-registry/complete-national-film-registry-listing/")
+tmp <- readHTMLTable(url, which = 1)
+
+# Select film title and release year
+tmp <- tmp[, 1:2]
+colnames(tmp) <- c("film", "year")
+
+# Create empty data frame to store film plots
+film_plots2 <- data.frame(film=character(), 
+                          year=integer(), 
+                          genre=character(), 
+                          imdbID=character(), 
+                          plot=character())
+
+# Loop through all films
+# Send request to OMDb API
+# Process result if valid
+for(i in 1:nrow(tmp)) {
+  title <- as.character(tmp[i,1])
+  year <- as.character(tmp[i,2])
+  title <- url_encode(title)
+  
+  url <- str_c("http://www.omdbapi.com/?t=", title, "&y=", year, "&type=movie&plot=full")
+  request <- getURL(url)
+  if(jsonlite::validate(request)) {
+    response <- request %>% spread_values(response = jstring("Response"))
+    if(response$response=="True") {
+      request <- request %>% spread_values(title = jstring("Title"), 
+                                           year = jstring("Year"), 
+                                           genre = jstring("Genre"), 
+                                           imdbID = jstring("imdbID"), 
+                                           plot = jstring("Plot")) %>% 
+        select(-document.id)
+      film_plots2 <- rbind(film_plots2, request)
+    }
+  }
+  Sys.sleep(1)
+}
+
+# Remove duplicate entries
+film_plots2 <- film_plots2 %>% 
+  group_by(title, year, genre, imdbID, plot) %>% 
+  summarize() 
+
+# Add primary genre/classifier
+film_plots2["class"] <- NA
+film_plots2[str_detect(film_plots2$genre, "Drama")!=TRUE & 
+              str_detect(film_plots2$genre, "Comedy")==TRUE, 6] <- "Comedy"
+film_plots2[str_detect(film_plots2$genre, "Drama")==TRUE & 
+              str_detect(film_plots2$genre, "Comedy")!=TRUE, 6] <- "Drama"
+
+# Remove entries with no plot
+film_plots2 <- film_plots2 %>% 
+  ungroup() %>% 
+  filter(!is.na(class)) %>% 
+  select(title, year, class, imdbID, plot)
+
+# Merge original and new data frames
+film_plots <- rbind(film_plots, film_plots2)
+
+# Remove diplicate entries
+film_plots <- film_plots %>% 
+  group_by(title, year, class, imdbID, plot) %>% 
+  summarize() 
+
+# Remove entries with no plot
+film_plots <- film_plots %>% 
+  filter(plot != "N/A")
+
+# Similarly to Part I save to file for preservation and efficiency
+write.csv(film_plots, file = "film_plots2.csv", row.names = FALSE)
+```
+
+```{r}
+film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots2.csv")
+
+table(film_plots$class)
+```
+
+### Data Analysis
+
+Now that I have more observations for each class, run the same **tf-idf** analysis as in Part I.
+
+```{r}
+data("stop_words")
+
+film_plots$plot <- as.character(film_plots$plot)
+
+tidy_plots <- film_plots %>% 
+  unnest_tokens(word, plot) %>% 
+  anti_join(stop_words, by = "word")
+
+plot_words <- tidy_plots %>% 
+  count(class, word, sort = TRUE) %>% 
+  ungroup()
+
+total_words <- plot_words %>% 
+  group_by(class) %>% 
+  summarize(total = sum(n))
+
+plot_words <- left_join(plot_words, total_words, by = "class")
+
+plot_words <- plot_words %>% 
+  bind_tf_idf(word, class, n)
+
+plot_comedy <- plot_words %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Comedy") %>% 
+  top_n(10, tf_idf) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n)) +
+  geom_bar(stat = "identity", fill = "red") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Comedy Words (tf-idf)")
+
+plot_drama <- plot_words %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Drama") %>% 
+  top_n(10, tf_idf) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n)) +
+  geom_bar(stat = "identity", fill = "blue") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Drama Words (tf-idf)")
+
+grid.arrange(plot_comedy, plot_drama, ncol=2)
+```
+
+There is still some very specific words, especially for comedy, but I find the list to be a lot more interesting. I wanted to look at **bigrams**. The workflow is similar to analyzing individual words. 
+
+```{r}
+plot_bigrams <- film_plots %>%
+  unnest_tokens(bigram, plot, token = "ngrams", n = 2)
+
+plot_bigrams <- plot_bigrams %>% 
+  count(class, bigram, sort = TRUE) %>% 
+  ungroup()
+
+total_bigrams <- plot_bigrams %>% 
+  group_by(class) %>% 
+  summarize(total = sum(n))
+
+plot_bigrams <- 
+  left_join(plot_bigrams, total_bigrams, by = "class")
+
+plot_bigrams <- plot_bigrams %>% 
+  bind_tf_idf(bigram, class, n)
+
+plot_comedy <- plot_bigrams %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Comedy") %>% 
+  top_n(10, tf-idf) %>% 
+  mutate(bigram = reorder(bigram, n)) %>% 
+  ggplot(aes(bigram, n)) +
+  geom_bar(stat = "identity", fill = "red") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Comedy Bigrams (tf-idf)")
+
+plot_drama <- plot_bigrams %>% 
+  select(-total) %>% 
+  arrange(desc(tf_idf)) %>% 
+  filter(class == "Drama") %>% 
+  top_n(10, tf_idf) %>% 
+  mutate(bigram = reorder(bigram, n)) %>% 
+  ggplot(aes(bigram, n)) +
+  geom_bar(stat = "identity", fill = "blue") + coord_flip() + 
+  labs(x = "Word", y = "Frequency", title = "Top Drama Bigrams (tf-idf)")
+
+grid.arrange(plot_comedy, plot_drama, ncol=2)
+```
+
+Here again the Drama bigrams look fairly interesting, but the Comedy bigrams are full of stop words. I should separate the bigrams and get rid of all stop words for proper analysis. For now, I am proceeding to trying to model classification. 
+
+## Data Scraping: Part III
+
+I have created the document-term matrix and ran the data through SVM, Tree and Max Entropy models as suggested in the supervised learning section of Chapter 10 of the *Automated Data Collection with R* textbook. The Max Entropy model was essentially classifying as good as a coin flip, very close to 50-50. But SVM and Tree models seemed to show better results. However, I have discovered that they were classifying all the test set as Drama. Since the number of comedies was much smaller, the models were fairly good. This was disappointing. I figured I needed to collect more comedy plots. 
+
+Since this was my third collection attempt, I decided to simply get a list of [top 100 comedy films](https://www.rottentomatoes.com/top/bestofrt/top_100_comedy_movies/) from Rotten Tomatoes, manually format it and save it as a CSV file.
+
+Again, methodology to collect film plots is the same as in Parts I and II. 
+
+```{r eval=FALSE}
+# Get a list of additional comedies
+tmp <- read.csv("films3.csv")
+
+film_plots3 <- data.frame(film=character(), 
+                          year=integer(), 
+                          genre=character(), 
+                          imdbID=character(), 
+                          plot=character())
+
+for(i in 1:nrow(tmp)) {
+  title <- as.character(tmp[i,1])
+  title <- url_encode(title)
+  year <- as.character(tmp[i,2])
+  
+  url <- str_c("http://www.omdbapi.com/?t=", title, "&y=", year, "&type=movie&plot=full")
+  request <- getURL(url)
+  if(jsonlite::validate(request)) {
+    response <- request %>% spread_values(response = jstring("Response"))
+    if(response$response=="True") {
+      request <- request %>% spread_values(title = jstring("Title"), 
+                                           year = jstring("Year"), 
+                                           genre = jstring("Genre"), 
+                                           imdbID = jstring("imdbID"), 
+                                           plot = jstring("Plot")) %>% 
+        select(-document.id)
+      film_plots3 <- rbind(film_plots3, request)
+    }
+  }
+  Sys.sleep(1)
+}
+
+film_plots3 <- film_plots3 %>% 
+  group_by(title, year, genre, imdbID, plot) %>% 
+  summarize() 
+
+film_plots3["class"] <- NA
+film_plots3[str_detect(film_plots3$genre, "Drama")!=TRUE & 
+              str_detect(film_plots3$genre, "Comedy")==TRUE, 6] <- "Comedy"
+film_plots3[str_detect(film_plots3$genre, "Drama")==TRUE & 
+              str_detect(film_plots3$genre, "Comedy")!=TRUE, 6] <- "Drama"
+
+table(film_plots3$class)
+
+film_plots3 <- film_plots3 %>% 
+  ungroup() %>% 
+  filter(!is.na(class)) %>% 
+  select(title, year, class, imdbID, plot)
+
+film_plots <- rbind(film_plots, as.data.frame(film_plots3))
+
+film_plots <- film_plots %>% 
+  group_by(title, year, class, imdbID, plot) %>% 
+  summarize() 
+
+film_plots <- film_plots %>% 
+  filter(plot != "N/A")
+
+write.csv(film_plots, file = "film_plots3.csv", row.names = FALSE)
+```
+
+Interestingly, quite a few films Rotten Tomatoes considers comedic are actually classified as Drama according to the IMDb information.
+
+```{r}
+film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots3.csv")
+
+table(film_plots$class)
+```
+
+I did not get a significant number of additional comedies, but there were a few additions. I decided to randomize the film list, so that the training set and test set in the corpus are spread out more evenly. 
+
+```{r}
+film_plots <- film_plots[sample(nrow(film_plots)),]
+```
+
+## Data Analysis: Classification
+
+```{r}
+# Build document-term matrix
+matrix <- create_matrix(film_plots$plot, language="english",
+                        removeNumbers=TRUE, stemWords=TRUE, weighting=tm::weightTf)
+
+# Create a container with existing labels
+# The first 375 observations will be used to traing the models
+# Remaining observations will be used to test the models
+container <- create_container(matrix, 
+                              film_plots$class, 
+                              trainSize = 1:375, 
+                              testSize = 376:length(film_plots$class), 
+                              virgin = FALSE)
+
+# Train models
+svm_model <- train_model(container, "SVM")
+tree_model <- train_model(container, "TREE")
+maxent_model <- train_model(container, "MAXENT")
+
+# Classify the test set
+svm_out <- classify_model(container, svm_model)
+tree_out <- classify_model(container, tree_model)
+maxent_out <- classify_model(container, maxent_model)
+
+# Get the actual and predicted labels
+labels_out <- data.frame(plot = film_plots$plot[376:length(film_plots$plot)],
+                         correct_label = film_plots$class[376:length(film_plots$class)],
+                         svm = as.character(svm_out[,1]),
+                         tree = as.character(tree_out[,1]),
+                         maxent = as.character(maxent_out[,1]),
+                         stringsAsFactors = FALSE)
+```
+
+Actual classification:
+
+```{r}
+table(labels_out$correct_label)
+```
+
+SVM model performance:
+
+```{r}
+table(labels_out$svm)
+prop.table(table(labels_out$correct_label == labels_out$svm))
+```
+
+Random Forrest model performance: 
+
+```{r}
+table(labels_out$tree)
+prop.table(table(labels_out$correct_label == labels_out$tree))
+```
+
+Maximum Entropy model performance: 
+
+```{r}
+table(labels_out$maxent)
+prop.table(table(labels_out$correct_label == labels_out$maxent))
+```
+
+Maximum Entropy model identified the most comedies and it predicted the classification with about 65% accuracy. I wanted to get general analytics as calculated by the `RTextTools` package. Unfortunately, the `create_analytics` method only understands numeric values. 
+
+```{r}
+# Convert class labels to numeric values
+classNo <- as.numeric(as.factor(film_plots$class))
+
+# Rerun Maximum Entropy model
+container <- create_container(matrix, classNo, 
+                              trainSize = 1:375, testSize = 376:length(film_plots$class), 
+                              virgin = FALSE)
+maxent_model <- train_model(container, "MAXENT")
+maxent_out <- classify_model(container, maxent_model)
+analytics <- create_analytics(container, maxent_out, b=1)
+
+# Output analytics summary
+analytics@label_summary
+```
+
+Consider mismatched classification. 
+
+```{r}
+bad_predictions <- labels_out[labels_out$correct_label != labels_out$maxent, ]
+```
+
+```{r echo=FALSE}
+knitr::kable(bad_predictions)
+```
+
+
+## Conclusion
+
+It took quite a bit of time to figure out how to traverse different data structures. XML and JSON allow for the most flexibility in manipulating stored data. HTML is simplier to handle, but much less flexible.
