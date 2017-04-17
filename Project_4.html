@@ -331,7 +331,7 @@ film_plots &lt;- film_plots %&gt;%
   summarize() </code></pre>
 <p>Since it took some time to collect film plots for hundreds of films, I have saved the data frame to a CSV file. This also helps preserve data to make analysis reproducable in the future.</p>
 <pre class="r"><code>write.csv(film_plots, file = &quot;film_plots.csv&quot;, row.names = FALSE)</code></pre>
-<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;C:\\Users\\ikats\\Documents\\film_plots.csv&quot;)</code></pre>
+<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots.csv&quot;)</code></pre>
 <p>A sample of collected film plots is in the table below.</p>
 <table>
 <thead>
@@ -579,7 +579,7 @@ film_plots &lt;- film_plots %&gt;%
 
 # Similarly to Part I save to file for preservation and efficiency
 write.csv(film_plots, file = &quot;film_plots2.csv&quot;, row.names = FALSE)</code></pre>
-<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;C:\\Users\\ikats\\Documents\\film_plots2.csv&quot;)
+<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots2.csv&quot;)
 
 table(film_plots$class)</code></pre>
 <pre><code>## 
@@ -681,7 +681,7 @@ grid.arrange(plot_comedy, plot_drama, ncol=2)</code></pre>
 <p>Since this was my third collection attempt, I decided to simply get a list of <a href="https://www.rottentomatoes.com/top/bestofrt/top_100_comedy_movies/">top 100 comedy films</a> from Rotten Tomatoes, manually format it and save it as a CSV file.</p>
 <p>Again, methodology to collect film plots is the same as in Parts I and II.</p>
 <pre class="r"><code># Get a list of additional comedies
-tmp &lt;- read.csv(&quot;films3.csv&quot;)
+tmp &lt;- read.csv(file = &quot;https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/films3.csv&quot;)
 
 film_plots3 &lt;- data.frame(film=character(), 
                           year=integer(), 
@@ -739,7 +739,7 @@ film_plots &lt;- film_plots %&gt;%
 
 write.csv(film_plots, file = &quot;film_plots3.csv&quot;, row.names = FALSE)</code></pre>
 <p>Interestingly, quite a few films Rotten Tomatoes considers comedic are actually classified as Drama according to the IMDb information.</p>
-<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;C:\\Users\\ikats\\Documents\\film_plots3.csv&quot;)
+<pre class="r"><code>film_plots &lt;- read.csv(file = &quot;https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots3.csv&quot;)
 
 table(film_plots$class)</code></pre>
 <pre><code>## 
@@ -784,35 +784,35 @@ labels_out &lt;- data.frame(plot = film_plots$plot[376:length(film_plots$plot)],
 <pre class="r"><code>table(labels_out$correct_label)</code></pre>
 <pre><code>## 
 ## Comedy  Drama 
-##     26     74</code></pre>
+##     32     68</code></pre>
 <p>SVM model performance:</p>
 <pre class="r"><code>table(labels_out$svm)</code></pre>
 <pre><code>## 
 ## Comedy  Drama 
-##     13     87</code></pre>
+##     10     90</code></pre>
 <pre class="r"><code>prop.table(table(labels_out$correct_label == labels_out$svm))</code></pre>
 <pre><code>## 
 ## FALSE  TRUE 
-##  0.23  0.77</code></pre>
+##  0.24  0.76</code></pre>
 <p>Random Forrest model performance:</p>
 <pre class="r"><code>table(labels_out$tree)</code></pre>
 <pre><code>## 
 ## Comedy  Drama 
-##     40     60</code></pre>
+##      7     93</code></pre>
 <pre class="r"><code>prop.table(table(labels_out$correct_label == labels_out$tree))</code></pre>
 <pre><code>## 
 ## FALSE  TRUE 
-##  0.34  0.66</code></pre>
+##  0.31  0.69</code></pre>
 <p>Maximum Entropy model performance:</p>
 <pre class="r"><code>table(labels_out$maxent)</code></pre>
 <pre><code>## 
 ## Comedy  Drama 
-##     16     84</code></pre>
+##     24     76</code></pre>
 <pre class="r"><code>prop.table(table(labels_out$correct_label == labels_out$maxent))</code></pre>
 <pre><code>## 
 ## FALSE  TRUE 
-##  0.22  0.78</code></pre>
-<p>Maximum Entropy model identified the most comedies and it predicted the classification with about 65% accuracy. I wanted to get general analytics as calculated by the <code>RTextTools</code> package. Unfortunately, the <code>create_analytics</code> method only understands numeric values.</p>
+##  0.26  0.74</code></pre>
+<p>Maximum Entropy model seems to perform well with this data. I wanted to get general analytics as calculated by the <code>RTextTools</code> package. Unfortunately, the <code>create_analytics</code> method only understands numeric values. 1 represents Comedy and 2 represents Drama.</p>
 <pre class="r"><code># Convert class labels to numeric values
 classNo &lt;- as.numeric(as.factor(film_plots$class))
 
@@ -827,14 +827,14 @@ analytics &lt;- create_analytics(container, maxent_out, b=1)
 # Output analytics summary
 analytics@label_summary</code></pre>
 <pre><code>##   NUM_MANUALLY_CODED NUM_CONSENSUS_CODED NUM_PROBABILITY_CODED
-## 1                 26                  16                    16
-## 2                 74                  84                    84
+## 1                 32                  24                    24
+## 2                 68                  76                    76
 ##   PCT_CONSENSUS_CODED PCT_PROBABILITY_CODED PCT_CORRECTLY_CODED_CONSENSUS
-## 1            61.53846              61.53846                      38.46154
-## 2           113.51351             113.51351                      91.89189
+## 1             75.0000               75.0000                      46.87500
+## 2            111.7647              111.7647                      86.76471
 ##   PCT_CORRECTLY_CODED_PROBABILITY
-## 1                        38.46154
-## 2                        91.89189</code></pre>
+## 1                        46.87500
+## 2                        86.76471</code></pre>
 <p>Consider mismatched classification.</p>
 <pre class="r"><code>bad_predictions &lt;- labels_out[labels_out$correct_label != labels_out$maxent, ]</code></pre>
 <table>
@@ -850,187 +850,221 @@ analytics@label_summary</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
+<td>1</td>
+<td align="left">Young Leon Kanter dreams of being a great violinist. His parents scrape up the money for a violin and for lessons, and Leon rewards them by becoming a great player. But as an adult, Leon finds that people want more from him than just music.</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td align="left">An investigative reporter sees an opportunity for the story of a lifetime when an accused murderer escapes hanging.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="odd">
 <td>9</td>
-<td align="left">The owner of a general store (Harold Bisonette) is hounded by his status-anxious wife (“That’s ‘Bee-soh-nay’” and “I have no maid you know”). To get some sleep he goes out on the porch where he is tormented by a little boy from the floor above (Baby Dunk) and an insurance salesman down below (“LaFong. Capital L, small a…”). He uses an inheritance to buy an orange ranch through the mail, then drives off with his family for California. The orange grove consists of a withered tree, the ranch house is but a shack, and the car falls to pieces. But a racetrack operator wants the land, so all ends happily.</td>
-<td align="left">Comedy</td>
+<td align="left">A major heist goes off as planned, until bad luck and double crosses cause everything to unravel.</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Comedy</td>
-<td align="left">Drama</td>
 </tr>
 <tr class="even">
 <td>11</td>
-<td align="left">Two Union soldiers maintaining a position on a riverbank negotiate a one-hour truce with the Confederate soldier manning the opposite bank. During the hour, they gain respect for one another as they trade tobacco, enjoy some fishing and make an unsettling discovery.</td>
+<td align="left">Inventor Gepetto creates a wooden marionette called Pinocchio. His wish that Pinocchio be a real boy is unexpectedly granted by a fairy. The fairy assigns Jiminy Cricket to act as Pinocchio’s “conscience” and keep him out of trouble. Jiminy is not too successful in this endeavor and most of the film is spent with Pinocchio deep in trouble.</td>
+<td align="left">Comedy</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
 </tr>
 <tr class="odd">
-<td>14</td>
-<td align="left">In the year 1971, San Francisco faces the terror of a maniac known as Scorpio- who snipes at innocent victims and demands ransom through notes left at the scene of the crime. Inspector Harry Callahan (known as Dirty Harry by his peers through his reputation handling of homicidal cases) is assigned to the case along with his newest partner Inspector Chico Gonzalez to track down Scorpio and stop him. Using humiliation and cat and mouse type of games against Callahan, Scorpio is put to the test with the cop with a dirty attitude.</td>
+<td>13</td>
+<td align="left">Michael, Steven and Nick are young factory workers from Pennsylvania who enlist into the Army to fight in Vietnam. Before they go, Steven marries the pregnant Angela, and their wedding party also serves as the men’s farewell party. After some time and many horrors, the three friends fall in the hands of the Vietcong and are brought to a prison camp in which they are forced to play Russian roulette against each other. Michael makes it possible for them to escape, but they soon get separated again.</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
 <td align="left">Comedy</td>
 </tr>
 <tr class="even">
+<td>15</td>
+<td align="left">Mrs. Sharpe keeps her eye on Bunny. His friend Bigelow invites him to join him in a session with the cards and chips, and tells him that he will fix it up with Mrs. Sharpe. He sends Bunny a notice telling him he has been elected a member of the Sons of the Morning, who meet every Wednesday evening. Sharpe tells his wife that this is a distinction he did not expect and so impresses her with the honor that has been conferred upon him, that she consents to his going to the meetings. Unfortunately, Bunny talks in his sleep, and his better-half overhears him “passing and drawing,” and going “some better” in his dreams. She becomes suspicious, appeals to her cousin, Freddie Dewdrop, who promises to find out where her husband spends his evenings. Disguising himself by changing his trousers and turning up the front of his hat, he follows Bunny, and learns the truth. Freddy and Mrs. Sharpe work up a plot to scare Bunny. They divulge the scheme to all the wives. Freddy consults the members of the Mental Improvement Society, of which he is one, and they agree to disguise themselves as policemen and make a raid on the poker fiends. Before doing so, however, he invites the wives to meet at the point of attack at a certain hour, without telling them just what is going to happen. Freddie, as the Captain, leads his officers and sweeps down upon the poker players, catching them red-handed and placing them under arrest. At this moment the wives enter the room and there is no escape for their husbands, and in fear of disgrace, they agree to give up poker and spend their evenings at home. With uplifted hands they swear it and they are forgiven by their wives and freed from arrest, at the command of the gallant Captain, Freddie Dewdrop.</td>
+<td align="left">Comedy</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="odd">
 <td>18</td>
-<td align="left">A circus’ beautiful trapeze artist agrees to marry the leader of side-show performers, but his deformed friends discover she is only marrying him for his inheritance.</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Comedy</td>
-</tr>
-<tr class="odd">
-<td>20</td>
-<td align="left">A rather neurotic ant tries to break from his totalitarian society while trying to win the affection of the princess he loves.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="even">
-<td>21</td>
-<td align="left">An Englishman on a Ruritarian holiday must impersonate the king when the rightful monarch, a distant cousin, is drugged and kidnapped.</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Comedy</td>
-</tr>
-<tr class="odd">
-<td>26</td>
-<td align="left">Broadway director Oscar Jaffe (John Barrymore) is a bigger ham than most actors, but through sheer drive and talent he is able to build a successful career. When one of his discoveries, Lily Garland (Carole Lombard), rises to stardom and heeds the call of Hollywood, Oscar begins a career slide. He hits the skids and seems on his way out, until he chances to meet Lily again, on a train ride aboard the Twentieth Century Limited. Oscar pulls out all the stops to re-sign his former star, but it’s a battle… because Lily, who is as temperamental as Oscar is, wants to have nothing to do with her former mentor.</td>
+<td align="left">Arthur is a happy drunk with no pretensions at any ambition. He is also the heir to a vast fortune which he is told will only be his if he marries Susan. He does not love Susan, but she will make something of him the family expects. Arthur proposes but then meets a girl with no money who he could easily fall in love with.</td>
 <td align="left">Comedy</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="even">
-<td>27</td>
-<td align="left">Murderesses Velma Kelly (a chanteuse and tease who killed her husband and sister after finding them in bed together) and Roxie Hart (who killed her boyfriend when she discovered he wasn’t going to make her a star) find themselves on death row together and fight for the fame that will keep them from the gallows in 1920s Chicago.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="odd">
-<td>36</td>
-<td align="left">Ballet star Pete “Petrov” Peters arranges to cross the Atlantic aboard the same ship as the dancer he’s fallen for but barely knows, musical star Linda Keene. By the time the ocean liner reaches New York, a little white lie has churned through the rumor mill and turned into a hot gossip item: that the two celebrities are secretly married.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="even">
-<td>39</td>
-<td align="left">The evil, long-nosed queen asks the magic mirror in her hand who’s the fairest in the land, and the mirror replies that she is. But into the queen’s cave walks Betty Boop, singing that she wants to see her stepmama. Now Betty is the fairest in the land and the queen orders her beheaded. Koko and Bimbo can’t bring themselves to do it. Later, Betty ends up encased in a block of ice. The Seven Dwarfs, thinking she’s dead, bring her into the Mystery Cave, her final resting place. Bimbo and Koko join them. And so does the queen, who has changed herself into a witch. The clown, with Cab Calloway’s voice, sings “St. James Infirmary Blues” in the weird cave full of flying skeletons and floating ghosts. Only a reversal of fortune can save Betty and the two heroes now.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="odd">
-<td>40</td>
+<td>19</td>
 <td align="left">Cat(herine) Ballou’s family farm is being threatened by the Rail Road. She sends for Kid Shelleen, finding him to be the drunkest gunfighter in the west. When her father is killed by the rail road magnate’s gunman, she vowes to fight on. Shelleen manages to ride sideways in several scenes, while minstrels sing the ballad of Cat Ballou in between scenes.</td>
 <td align="left">Comedy</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="even">
-<td>47</td>
-<td align="left">When a mysterious figure appears to cause a series of disruptions at the Frisbie Home in New York, word goes out to Scotland Yard that the Fuzz-Faced Phantom is at work. Soon, Charley …</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="odd">
-<td>51</td>
-<td align="left">Mabel is engaged to Harry, the boss’s son. The boss has an eye for Mabel too, in this gender-bending comedy of errors and mistaken identities.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
-</tr>
-<tr class="even">
-<td>53</td>
-<td align="left">Harry Morgan and his alcoholic sidekick, Eddie, are based on the island of Martinique and crew a boat available for hire. However, since the second world war is happening around them business is not what it could be and after a customer who owes them a large sum fails to pay they are forced against their better judgment to violate their preferred neutrality and to take a job for the resistance transporting a fugitive on the run from the Nazis to Martinique. Through all this runs the stormy relationship between Morgan and Marie “Slim” Browning, a resistance sympathizer and the sassy singer in the club where Morgan spends most of his days.</td>
-<td align="left">Comedy</td>
-<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="odd">
-<td>55</td>
-<td align="left">Peter Venkman, Ray Stantz and Egon work at the University where they delve into the paranormal and fiddle with many unethical experiments on the students. As they are kicked out of the University do they really understand their knowledge of the paranormal and go into business for themselves. Under the new snazzy business name of ‘Ghostbusters’, and living in the old firehouse building they work out of, they are called to rid New York City of paranormal phenomenon at everyone’s whim…. for a price. They make national press as the media thinks and pressures everybody the Ghostbusters are the cause of it all. Thrown in jail by the EPA, the mayor takes a chance and calls on them to help save the city. Unbeknownst to all, a long dead Gozer worshiper (Evo Shandor) erected downtown apartment building is the cause of all the paranormal activity. They find out the building could resurrect the ancient Hittite god, Gozer, and bring an end to all of humanity. Who are you gonna call to stop this terrible world-ending menace?</td>
+<td>27</td>
+<td align="left">At the bottom of the depression, Tom’s mother has been out of work for months when Ed’s father loses his job. Not to burden their parents, the two high school sophomore’s decide to hop the freights and look for work. Wherever they go, there are many other kids just like them, so Tom, Ed and now Sally stick together. They camp in places like ‘Sewer City’ as long as they can until the local authorities run them off. They travel all over the mid west and when they get to New York, Ed thinks that they may finally find work.</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+</tr>
+<tr class="even">
+<td>32</td>
+<td align="left">Berlin’s plushest, most expensive hotel is the setting where in the words of Dr. Otternschlag “People come, people go. Nothing ever happens.”. The doctor is usually drunk so he missed the fact that Baron von Geigern is broke and trying to steal eccentric dancer Grusinskaya’s pearls. He ends up stealing her heart instead. Powerful German businessman Preysing brow beats Kringelein, one of his company’s lowly bookkeepers but it is the terminally ill Kringelein who holds all the cards in the end. Meanwhile, the Baron also steals the heart of Preysing’s mistress, Flaemmchen, but she doesn’t end up with either one of them in the end…</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+</tr>
+<tr class="odd">
+<td>33</td>
+<td align="left">Poor Ella Cinders is much abused by her evil step-mother and step-sisters. When she wins a local beauty contest she jumps at the chance to get out of her dead-end life and go to Hollywood, where she is promised a job in the movies. When she arrives in Hollywood, she discoves that the contest was a scam and the job non-existant. But through pluck, luck, and talent, she makes it in the movies anyway, and finds true love.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="even">
+<td>38</td>
+<td align="left">New Yorkers Paul Bratter and Corie Bratter née Banks have just gotten married. He is a stuffed shirt just starting his career as a lawyer. She is an independently minded free spirit who prides herself on doing the illogical purely out of a sense of adventure, such acts as walking through Washington Square Park barefoot when it’s 17°F outside. Their six day honeymoon at the Plaza Hotel shows that they can get to know each other easily in the biblical sense. But they will see if they can get to know each other in their real life when they move into their first apartment, a cozy (in other words, small), slightly broken down top floor unit in a five story walk-up. While Corie joyfully bounds up and down the stairs, Paul, always winded after the fact, hates the fact of having to walk up the six flights of stairs, if one includes the stairs that comprise the outside front stoop. Beyond the issues with the apartment itself, Paul and Corie will have to deal with an odd assortment of neighbors, most specifically eccentric senior Victor Velasco, who lives in the unusual attic and who would like to consider himself a dirty old man. Corie, worried about her single straight-laced mother Ethel Banks, wants to set her up with Victor. Without Corie or Paul truly realizing it, Ethel and Victor as a twosome is as illogical as Corie and Paul. What happens between Ethel and Victor may be a predictor if Corie and Paul’s marriage can make it in the long run.</td>
 <td align="left">Comedy</td>
 <td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="odd">
+<td>39</td>
+<td align="left">The small state of Freedonia is in a financial mess, borrowing a huge sum of cash from wealthy widow Mrs. Teasdale. She insists on replacing the current president with crazy Rufus T. Firefly and mayhem erupts. To make matters worse, the neighboring state sends inept spies Chicolini and Pinky to obtain top secret information, creating even more chaos!</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="even">
+<td>40</td>
+<td align="left">Chinese stowaway Mei Li (Miyoshi Umeki) arrives in San Francisco with her father to meet her fiancé, wealthy nightclub owner Sammy Fong (Jack Soo), in an arranged marriage, but the groom has his eye on his star singer Linda Low (Nancy Kwan). This film version of the Rodgers and Hammerstein Broadway musical is filled with memorable song-and-dance numbers showcasing the contrast between Mei Li’s traditional family and her growing fascination with American culture.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="odd">
+<td>42</td>
+<td align="left">Having been discharged from the Marines for a hayfever condition before ever seeing action, Woodrow Lafayette Pershing Truesmith (Eddie Bracken) delays the return to his hometown, feeling that he is a failure. While in a moment of melancholy, he meets up with a group of Marines who befriend him and encourage him to return home to his mother by fabricating a story that he was wounded in battle with honorable discharge. They make him wear a uniform complete with medals and is pushed by his new friends into accepting a Hero’s welcome when he gets home where he is to be immortalized by a statue that he doesn’t want, has songs written about his heroic battle stories, and ends up unwillingly running for mayor. Despite his best efforts to explain the truth, no one will listen.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="even">
+<td>54</td>
+<td align="left">Set in winter in the Old West. Charismatic but dumb John McCabe arrives in a young Pacific Northwest town to set up a whorehouse/tavern. The shrewd Mrs. Miller, a professional madam, arrives soon after construction begins. She offers to use her experience to help McCabe run his business, while sharing in the profits. The whorehouse thrives and McCabe and Mrs. Miller draw closer, despite their conflicting intelligences and philosophies. Soon, however, the mining deposits in the town attract the attention of a major corporation, which wants to buy out McCabe along with the rest. He refuses, and his decision has major repercussions for him, Mrs. Miller, and the town.</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Comedy</td>
+</tr>
+<tr class="odd">
+<td>57</td>
+<td align="left">In occupied Poland during WWII, a troupe of ham stage actors (led by Joseph Tura and his wife Maria) match wits with the Nazis. A spy has information which would be very damaging to the Polish resistance and they must prevent it’s being delivered to the Germans.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="even">
 <td>58</td>
-<td align="left">A sly business manager and two wacky friends of two opera singers help them achieve success while humiliating their stuffy and snobbish enemies.</td>
-<td align="left">Comedy</td>
+<td align="left">At an all-black army camp, civilian parachute maker and “hot bundle” Carmen Jones is desired by many of the men. Naturally, she wants Joe, who’s engaged to sweet Cindy Lou and about to go into pilot training for the Korean War. Going after him, she succeeds only in getting him into the stockade. While she awaits his release, trouble approaches for both of them. Songs from the Bizet opera with modernized lyrics.</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Comedy</td>
-<td align="left">Drama</td>
 </tr>
 <tr class="odd">
-<td>60</td>
-<td align="left">McMurphy has a criminal past and has once again gotten himself into trouble and is sentenced by the court. To escape labor duties in prison, McMurphy pleads insanity and is sent to a ward for the mentally unstable. Once here, McMurphy both endures and stands witness to the abuse and degradation of the oppressive Nurse Ratched, who gains superiority and power through the flaws of the other inmates. McMurphy and the other inmates band together to make a rebellious stance against the atrocious Nurse.</td>
+<td>63</td>
+<td align="left">Three friends struggle to find work in Paris. Things become more complicated when two of them fall in love with the same woman.</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
 <td align="left">Comedy</td>
 </tr>
 <tr class="even">
-<td>61</td>
-<td align="left">A city of monsters with no humans called Monstropolis centers around the city’s power company, Monsters, Inc. The lovable, confident, tough, furry blue behemoth-like giant monster named James P. Sullivan (better known as Sulley) and his wisecracking best friend, short, green cyclops monster Mike Wazowski, discover what happens when the real world interacts with theirs in the form of a 2-year-old baby girl dubbed “Boo,” who accidentally sneaks into the monster world with Sulley one night. And now it’s up to Sulley and Mike to send Boo back in her door before anybody finds out, especially two evil villains such as Sulley’s main rival as a scarer, chameleon-like Randall (a monster that Boo is very afraid of), who possesses the ability to change the color of his skin, and Mike and Sulley’s boss Mr. Waternoose, the chairman and chief executive officer of Monsters, Inc.</td>
+<td>72</td>
+<td align="left">Joe Bradley is a reporter for the American News Service in Rome, a job he doesn’t much like as he would rather work for what he considers a real news agency back in the States. He is on the verge of getting fired when he, sleeping in and getting caught in a lie by his boss Hennessy, misses an interview with HRH Princess Ann, who is on a goodwill tour of Europe, Rome only her latest stop. However, he thinks he may have stumbled upon a huge scoop. Princess Ann has officially called off all her Rome engagements due to illness. In reality, he recognizes the photograph of her as being the young well but simply dressed drunk woman he rescued off the street last night (as he didn’t want to turn her into the police for being a vagrant), and who is still in his small studio apartment sleeping off her hangover. What Joe doesn’t know is that she is really sleeping off the effects of a sedative given to her by her doctor to calm her down after an anxiety attack, that anxiety because she hates her regimented life where she has no freedom and must always do and say the politically correct things, not what is truly on her mind or in her heart. In wanting just a little freedom, she seized upon a chance opportunity to escape from the royal palace where she was staying, albeit with no money in her pockets. Joe believes he can get an exclusive interview with her without she even knowing that he’s a reporter or that he’s interviewing her. As Joe accompanies “Anya Smith” - her name as she tells him in trying to hide her true identity - around Rome on her incognito day of freedom somewhat unaware that the secret service is searching for her, along for the ride is Joe’s photographer friend, Irving Radovich, who Joe has tasked with clandestinely taking photographs of her, those photos to accompany the story. As the day progresses, Joe and Ann slowly start to fall for each other. Their feelings for each other affect what both decide to do, Ann with regard to her royal duties, Joe with regard to the story, and both with regard to if there is a future for them together.</td>
 <td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="odd">
+<td>75</td>
+<td align="left">Weary of the conventions of Parisian society, a rich playboy and a youthful courtesan-in-training enjoy a platonic friendship, but it may not stay platonic for long.</td>
 <td align="left">Comedy</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+</tr>
+<tr class="even">
+<td>78</td>
+<td align="left">Only the royal suite at the grandest hotel in Paris has a safe large enough for the jewels of the Grand Duchess Swana. So the three Russians who have come to sell the jewels settle into the suite until a higher ranking official is dispatched to find out what is delaying the sale. She is Ninotchka, a no nonsense woman who fascinates Count Leon who had been the faithful retainer of the Grand Duchess. The Grand Duchess will give up all claim to the jewels if Ninotchka will fly away from the count.</td>
+<td align="left">Comedy</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="odd">
 <td>83</td>
-<td align="left">New ocean liner S.S. Gigantic is about to race its rival, the Colossal. Gigantic owner T.F. Bellows sends his brother S.B. on the Colossal, hoping he will cause trouble; delayed by a golf game, S.B. lands on Gigantic instead, and so does his unlucky daughter Martha. Meanwhile, radio emcee Buzz Fielding announces a series of musical acts and tries to juggle fiancée Dorothy and three ex-wives who’ve come for the ride. Can the Gigantic win against all handicaps? Will true love triumph?</td>
+<td align="left">Tatsu is a slightly delusional painter who lives in the wilderness. He spends his days painting nothing but the image of his love, a princess he believes to have been incarnated as a dragon. His work is noticed by a servant of Kano Indara, an aging master painter who has no male heir or disciple to pass his skills to. The servant brings Tatsu to Indara under the belief that Indara can help him find his princess in exchange for allowing Indara to pass his knowledge on to him. Once there, Tatsu is led to believe that Indara’s daughter, Ume Ko, is the princess. Tatsu agrees to stay, but now that he has found his love he no longer has the inspiration to paint the masterpieces that he once produced. Ume Ko pretends to kill herself so that Tatsu can once again find inspiration through his sorrow, and once he regains this she reveals herself to him. He has learned that “love must be a slave to art”, and they live out the rest of their days together, with Tatsu painting her as he once did.</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
+<td align="left">Drama</td>
 <td align="left">Comedy</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
-<td align="left">Drama</td>
 </tr>
 <tr class="even">
-<td>86</td>
-<td align="left">Trudy Kockenlocker, a small-town girl with a soft spot for American soldiers, wakes up the morning after a wild farewell party for the troops to find that she married someone she can’t remember–and she’s pregnant. Norval Jones, the 4-F local boy who’s been in love with Trudy for years, tries to help her find a way out of her predicament. Trudy complicates matters further by falling for Norval, and events snowball from there.</td>
+<td>85</td>
+<td align="left">Set against the backdrop of 1977 Los Angeles, The Nice Guys opens when single father and licensed PI Holland March (Gosling) is hired to investigate the apparent suicide of famous porn star Misty Mountains. As the trail leads him to track down a girl named Amelia (Qualley), he encounters less licensed and less hands-off private eye Jackson Healey (Russell Crowe) and his brass knuckles, both hired by the young hippie. However, the situation takes a turn for the worse when Amelia vanishes and it becomes apparent that March wasn’t the only party interested. As both men are forced to team up, they’ll have to take on a world filled with eccentric goons, strippers dressed as mermaids and even a possible government conspiracy.</td>
 <td align="left">Comedy</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="odd">
-<td>93</td>
-<td align="left">Paranoid Brigadier General Jack D. Ripper of Burpelson Air Force Base, believing that fluoridation of the American water supply is a Soviet plot to poison the U.S. populace, is able to deploy through a back door mechanism a nuclear attack on the Soviet Union without the knowledge of his superiors, including the Chair of the Joint Chiefs of Staff, General Buck Turgidson, and President Merkin Muffley. Only Ripper knows the code to recall the B-52 bombers and he has shut down communication in and out of Burpelson as a measure to protect this attack. Ripper’s executive officer, RAF Group Captain Lionel Mandrake (on exchange from Britain), who is being held at Burpelson by Ripper, believes he knows the recall codes if he can only get a message to the outside world. Meanwhile at the Pentagon War Room, key persons including Muffley, Turgidson and nuclear scientist and adviser, a former Nazi named Dr. Strangelove, are discussing measures to stop the attack or mitigate its blow-up into an all out nuclear war with the Soviets. Against Turgidson’s wishes, Muffley brings Soviet Ambassador Alexi de Sadesky into the War Room, and get his boss, Soviet Premier Dimitri Kisov, on the hot line to inform him of what’s going on. The Americans in the War Room are dismayed to learn that the Soviets have an as yet unannounced Doomsday Device to detonate if any of their key targets are hit. As Ripper, Mandrake and those in the War Room try and work the situation to their end goal, Major T.J. “King” Kong, one of the B-52 bomber pilots, is working on his own agenda of deploying his bomb where ever he can on enemy soil if he can’t make it to his intended target.</td>
+<td>88</td>
+<td align="left">A young neurosurgeon (Gene Wilder) inherits the castle of his grandfather, the famous Dr. Victor von Frankenstein. In the castle he finds a funny hunchback called Igor, a pretty lab assistant named Inga and the old housekeeper, frau Blucher -iiiiihhh!-. Young Frankenstein believes that the work of his grandfather is only crap, but when he discovers the book where the mad doctor described his reanimation experiment, he suddenly changes his mind…</td>
 <td align="left">Comedy</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
 </tr>
 <tr class="even">
-<td>94</td>
-<td align="left">A charming Arabian sheik becomes infatuated with an adventurous, modern-thinking Englishwoman and abducts her to his home in the Saharan desert.</td>
+<td>90</td>
+<td align="left">’Toon star Roger is worried that his wife Jessica is playing pattycake with someone else, so the studio hires detective Eddie Valiant to snoop on her. But the stakes are quickly raised when Marvin Acme is found dead and Roger is the prime suspect. Groundbreaking interaction between the live and animated characters, and lots of references to classic animation.</td>
+<td align="left">Comedy</td>
 <td align="left">Drama</td>
 <td align="left">Drama</td>
-<td align="left">Comedy</td>
-<td align="left">Comedy</td>
+<td align="left">Drama</td>
 </tr>
 </tbody>
 </table>
 </div>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
-<p>It took quite a bit of time to figure out how to traverse different data structures. XML and JSON allow for the most flexibility in manipulating stored data. HTML is simplier to handle, but much less flexible.</p>
+<p>The results of the analysis were generally disappointing. Althought classification models were able to predict the test set with a better accuracy than a coin flip, there was still a significant number of wrong classification examples. There are two main variables. First, I have simplied film genre significantly. Original classification had much more detail than was used in the analysis. Perhaps, the method for chosing classes was flawed. This is demonstrated by a number of films that were originally classified as both comedy and drama (<em>dramedy</em> is a word for a reason). Second, film plots in this example are fairly limited. Looking over mismatched examples above, it is not hard to imagine some entries as comedic or dramatic films. I believe even human evaluators will have a hard time classifying some plots as Comedy or Drama.</p>
+<p>Additionally, I have discovered that the size and quality of the training set can have a very significant impact on the classification model. One of the steps in the process is randomizing the list of available plots. This changes the training set every time the code is executed. This has a noticeable impact on quality of models.</p>
+<p>Generally, I believe results I got are not acceptable to turn in for a real-life project and a lot more analysis and better training set should follow. However, as a training exercise, there is some good insight in the work performed.</p>
 </div>
 
 

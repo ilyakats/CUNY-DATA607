@@ -201,7 +201,7 @@ write.csv(film_plots, file = "film_plots.csv", row.names = FALSE)
 ```
 
 ```{r}
-film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots.csv")
+film_plots <- read.csv(file = "https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots.csv")
 ```
 
 A sample of collected film plots is in the table below. 
@@ -403,7 +403,7 @@ write.csv(film_plots, file = "film_plots2.csv", row.names = FALSE)
 ```
 
 ```{r}
-film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots2.csv")
+film_plots <- read.csv(file = "https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots2.csv")
 
 table(film_plots$class)
 ```
@@ -512,7 +512,7 @@ Again, methodology to collect film plots is the same as in Parts I and II.
 
 ```{r eval=FALSE}
 # Get a list of additional comedies
-tmp <- read.csv("films3.csv")
+tmp <- read.csv(file = "https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/films3.csv")
 
 film_plots3 <- data.frame(film=character(), 
                           year=integer(), 
@@ -574,7 +574,7 @@ write.csv(film_plots, file = "film_plots3.csv", row.names = FALSE)
 Interestingly, quite a few films Rotten Tomatoes considers comedic are actually classified as Drama according to the IMDb information.
 
 ```{r}
-film_plots <- read.csv(file = "C:\\Users\\ikats\\Documents\\film_plots3.csv")
+film_plots <- read.csv(file = "https://raw.githubusercontent.com/ilyakats/CUNY-DATA607/master/Project%204%20Data/film_plots3.csv")
 
 table(film_plots$class)
 ```
@@ -647,7 +647,7 @@ table(labels_out$maxent)
 prop.table(table(labels_out$correct_label == labels_out$maxent))
 ```
 
-Maximum Entropy model identified the most comedies and it predicted the classification with about 65% accuracy. I wanted to get general analytics as calculated by the `RTextTools` package. Unfortunately, the `create_analytics` method only understands numeric values. 
+Maximum Entropy model seems to perform well with this data. I wanted to get general analytics as calculated by the `RTextTools` package. Unfortunately, the `create_analytics` method only understands numeric values. 1 represents Comedy and 2 represents Drama.
 
 ```{r}
 # Convert class labels to numeric values
@@ -675,7 +675,10 @@ bad_predictions <- labels_out[labels_out$correct_label != labels_out$maxent, ]
 knitr::kable(bad_predictions)
 ```
 
-
 ## Conclusion
 
-It took quite a bit of time to figure out how to traverse different data structures. XML and JSON allow for the most flexibility in manipulating stored data. HTML is simplier to handle, but much less flexible.
+The results of the analysis were generally disappointing. Althought classification models were able to predict the test set with a better accuracy than a coin flip, there was still a significant number of wrong classification examples. There are two main variables. First, I have simplied film genre significantly. Original classification had much more detail than was used in the analysis. Perhaps, the method for chosing classes was flawed. This is demonstrated by a number of films that were originally classified as both comedy and drama (*dramedy* is a word for a reason). Second, film plots in this example are fairly limited. Looking over mismatched examples above, it is not hard to imagine some entries as comedic or dramatic films. I believe even human evaluators will have a hard time classifying some plots as Comedy or Drama. 
+
+Additionally, I have discovered that the size and quality of the training set can have a very significant impact on the classification model. One of the steps in the process is randomizing the list of available plots. This changes the training set every time the code is executed. This has a noticeable impact on quality of models.
+
+Generally, I believe results I got are not acceptable to turn in for a real-life project and a lot more analysis and better training set should follow. However, as a training exercise, there is some good insight in the work performed.

@@ -295,7 +295,11 @@ dtm <- tidy_plots %>%
   summarize(count = n()) %>% 
   cast_dtm(imdbID, word, count)
 
-container <- create_container(dtm, film_plots$class, trainSize = 1:300, testSize = 301:length(film_plots$class), virgin = FALSE)
+matrix <- create_matrix(film_plots$plot, language="english",
+                        removeNumbers=TRUE, stemWords=TRUE, weighting=tm::weightTf)
+
+container <- create_container(dtm, film_plots$class, trainSize = 1:375, testSize = 376:length(film_plots$class), virgin = FALSE)
+container <- create_container(matrix, film_plots$class, trainSize = 1:375, testSize = 376:length(film_plots$class), virgin = FALSE)
 
 svm_model <- train_model(container, "SVM")
 tree_model <- train_model(container, "TREE")
@@ -309,13 +313,12 @@ head(svm_out)
 head(tree_out)
 head(maxent_out)
 
-labels_out <- data.frame(plot = film_plots$plot[301:length(film_plots$plot)],
-                         correct_label = film_plots$class[301:length(film_plots$class)],
+labels_out <- data.frame(plot = film_plots$plot[376:length(film_plots$plot)],
+                         correct_label = film_plots$class[376:length(film_plots$class)],
                          svm = as.character(svm_out[,1]),
                          tree = as.character(tree_out[,1]),
                          maxent = as.character(maxent_out[,1]),
                          stringsAsFactors = FALSE)
-
 
 prop.table(table(labels_out$correct_label == labels_out$svm))
 prop.table(table(labels_out$correct_label == labels_out$tree))
@@ -323,5 +326,71 @@ prop.table(table(labels_out$correct_label == labels_out$maxent))
 
 
 table(labels_out$correct_label == labels_out$tree)
+table(labels_out$svm)
+table(labels_out$tree)
+table(labels_out$maxent)
 
 bad_predictions <- labels_out[labels_out$correct_label != labels_out$tree, ]
+
+classNo <- as.numeric(as.factor(film_plots$class))
+container <- create_container(matrix, classNo, trainSize = 1:375, testSize = 376:length(film_plots$class), virgin = FALSE)
+maxent_model <- train_model(container, "MAXENT")
+maxent_out <- classify_model(container, maxent_model)
+analytics <- create_analytics(container, maxent_out, b=1)
+analytics@label_summary
+
+
+tmp <- read.csv("films3.csv")
+
+film_plots3 <- data.frame(film=character(), year=integer(), genre=character(), imdbID=character(), plot=character())
+
+for(i in 1:nrow(tmp)) {
+  title <- as.character(tmp[i,1])
+  title <- url_encode(title)
+  year <- as.character(tmp[i,2])
+  
+  url <- str_c("http://www.omdbapi.com/?t=", title, "&y=", year, "&type=movie&plot=full")
+  request <- getURL(url)
+  if(jsonlite::validate(request)) {
+    response <- request %>% spread_values(response = jstring("Response"))
+    if(response$response=="True") {
+      request <- request %>% spread_values(title = jstring("Title"), 
+                                           year = jstring("Year"), 
+                                           genre = jstring("Genre"), 
+                                           imdbID = jstring("imdbID"), 
+                                           plot = jstring("Plot")) %>% 
+        select(-document.id)
+      film_plots3 <- rbind(film_plots3, request)
+    }
+  }
+  Sys.sleep(1)
+}
+
+film_plots3 <- film_plots3 %>% 
+  group_by(title, year, genre, imdbID, plot) %>% 
+  summarize() 
+
+film_plots3["class"] <- NA
+film_plots3[str_detect(film_plots3$genre, "Drama")!=TRUE & str_detect(film_plots3$genre, "Comedy")==TRUE, 6] <- "Comedy"
+film_plots3[str_detect(film_plots3$genre, "Drama")==TRUE & str_detect(film_plots3$genre, "Comedy")!=TRUE, 6] <- "Drama"
+
+table(film_plots3$class)
+
+film_plots3 <- film_plots3 %>% 
+  ungroup() %>% 
+  filter(!is.na(class)) %>% 
+  select(title, year, class, imdbID, plot)
+
+film_plots <- read.csv("film_plots2.csv")
+film_plots <- rbind(film_plots, as.data.frame(film_plots3))
+
+film_plots <- film_plots %>% 
+  group_by(title, year, class, imdbID, plot) %>% 
+  summarize() 
+
+film_plots <- film_plots %>% 
+  filter(plot != "N/A")
+
+write.csv(film_plots, file = "film_plots3.csv", row.names = FALSE)
+
+film_plots <- film_plots[sample(nrow(film_plots)),]
